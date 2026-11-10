@@ -35,8 +35,27 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 .ghost-btn{background:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.8rem;color:var(--ink-dim)}
 .ghost-btn:hover{color:var(--ink);border-color:var(--ink-dim)}
 
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--bench-2);border-radius:12px;padding:4px}
-.tabs button{background:none;border:0;border-radius:9px;padding:9px 6px;font-weight:600;color:var(--ink-dim)}
+.money{font-family:var(--f-num);font-size:.95rem;font-weight:500;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+.money i{font-style:normal;color:var(--brass);margin-right:4px}
+.money.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.22);color:var(--brass)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.money.pop{animation:none}}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--bench-2);border-radius:12px;padding:4px}
+.tabs button{background:none;border:0;border-radius:9px;padding:9px 2px;font-weight:600;color:var(--ink-dim);min-width:0}
+
+#shopView{overflow-y:auto;gap:14px;padding-bottom:8px}
+#shopView h2{margin:0;font-family:var(--f-display);font-size:1.2rem}
+.shop-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.shop-list li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.shop-list .txt{flex:1;min-width:0}
+.shop-list .nm{font-weight:600}
+.shop-list .lv{margin-left:6px;font-family:var(--f-num);font-size:.75rem;color:var(--brass)}
+.shop-list .ds{color:var(--ink-dim);font-size:.85rem}
+.buy{flex:none;min-width:104px;border:1px solid var(--brass);background:none;color:var(--brass);border-radius:10px;padding:8px 10px;font-family:var(--f-num);font-size:.85rem;font-weight:500}
+.buy:hover:not(:disabled){background:var(--brass);color:var(--brass-ink)}
+.buy:disabled{border-color:var(--line);color:var(--ink-dim);cursor:default}
+.buy.on{background:var(--brass);color:var(--brass-ink)}
+.gain{color:var(--brass);font-family:var(--f-num)}
 .tabs button[aria-selected="true"]{background:var(--brass);color:var(--brass-ink)}
 
 .view{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
@@ -115,6 +134,7 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
     <h1 class="logo">Schliff</h1>
     <div class="top-right">
       <span class="streak" id="streak"></span>
+      <span class="money" id="money" title="Dein Geld"></span>
       <button class="ghost-btn" id="sndBtn" aria-pressed="true">Ton an</button>
     </div>
   </header>
@@ -122,6 +142,7 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
   <nav class="tabs" role="tablist" aria-label="Bereich">
     <button role="tab" id="tab-daily" data-view="daily" aria-selected="true">Tagesstein</button>
     <button role="tab" id="tab-mine" data-view="mine" aria-selected="false">Mine</button>
+    <button role="tab" id="tab-shop" data-view="shop" aria-selected="false">Laden</button>
     <button role="tab" id="tab-vitrine" data-view="vitrine" aria-selected="false">Vitrine</button>
   </nav>
 
@@ -151,6 +172,14 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
     </div>
   </section>
 
+  <section class="view" id="shopView" hidden>
+    <h2>Schächte</h2>
+    <ul class="shop-list" id="shafts"></ul>
+    <h2>Hilfsmittel</h2>
+    <ul class="shop-list" id="tools"></ul>
+    <p class="note">Hilfsmittel wirken nur in der Mine. Der Tagesstein bleibt für alle gleich, bringt aber das Zehnfache und wächst mit deinem tiefsten Schacht und deiner Serie.</p>
+  </section>
+
   <section class="view" id="vitrineView" hidden>
     <dl class="stats" id="stats"></dl>
     <h2>Deine Steine</h2>
@@ -169,8 +198,10 @@ const fmtInt=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
 /* ---------- Speicher ---------- */
 const KEY='schliff.v1';
-let save={days:{},best:0,snd:true,seen:false,cur:null,n:0};
+let save={days:{},best:0,snd:true,seen:false,cur:null,n:0,money:0,shaft:0,sel:0,up:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'&&s.days)save=Object.assign(save,s)}catch(e){}
+save.up=Object.assign({lupe:0,guide:0,cut:0,slow:0,ins:0,pol:0},save.up);
+save.money=+save.money||0;save.shaft=Math.max(0,Math.min(4,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
 
 /* ---------- Datum ---------- */
@@ -200,29 +231,53 @@ const flat=p=>p.map(v=>[Math.round(v[0]*1e3)/1e3,Math.round(v[1]*1e3)/1e3]);
 
 /* ---------- Steine ---------- */
 const TYPES=[
-  {n:'Bergkristall',h:200,s:20,w:22},
-  {n:'Amethyst',h:275,s:60,w:18},
-  {n:'Citrin',h:44,s:88,w:16},
-  {n:'Smaragd',h:150,s:68,w:14},
-  {n:'Saphir',h:222,s:78,w:12},
-  {n:'Rubin',h:350,s:80,w:10},
-  {n:'Opal',h:175,s:55,w:5,iri:1},
-  {n:'Diamant',h:195,s:28,w:3,bright:1}
+  {n:'Bergkristall',h:200,s:20,w:22,v:1},
+  {n:'Amethyst',h:275,s:60,w:18,v:1.5},
+  {n:'Citrin',h:44,s:88,w:16,v:2},
+  {n:'Smaragd',h:150,s:68,w:14,v:3},
+  {n:'Saphir',h:222,s:78,w:12,v:4},
+  {n:'Rubin',h:350,s:80,w:10,v:5},
+  {n:'Opal',h:175,s:55,w:5,iri:1,v:9},
+  {n:'Diamant',h:195,s:28,w:3,bright:1,v:16}
 ];
+/* ---------- Wirtschaft ---------- */
+const SHAFTS=[
+  {n:'Tagebau',d:'Leichte Steine, kleine Preise.',cost:0,mult:1},
+  {n:'Schacht 2',d:'Preise ×3. Steine drehen sich früher.',cost:600,mult:3},
+  {n:'Schacht 3',d:'Preise ×9. Mehr seltene Steine.',cost:4000,mult:9},
+  {n:'Schacht 4',d:'Preise ×27. Viele Kanten, wenig Schnitte.',cost:25000,mult:27},
+  {n:'Tiefensohle',d:'Preise ×80. Nur für ruhige Hände.',cost:150000,mult:80}
+];
+const TOOLS=[
+  {k:'lupe',n:'Lupe',d:'Zeigt vor dem Loslassen, wie rein der Stein nach dem Schnitt ist.',costs:[300]},
+  {k:'pol',n:'Polierer',d:'Jede Stufe: 15 % mehr Verkaufspreis.',costs:[400,1500,6000,25000,100000]},
+  {k:'slow',n:'Zeitlupe',d:'Jede Stufe: Steine drehen sich 20 % langsamer.',costs:[600,3000,14000]},
+  {k:'guide',n:'Führungslinie',d:'Der Schnitt rastet an der Juwelkante ein. Höhere Stufe: rastet früher und knapper.',costs:[800,5000,30000]},
+  {k:'cut',n:'Extra-Schnitt',d:'Jede Stufe: ein Schnitt mehr pro Stein.',costs:[1500,12000]},
+  {k:'ins',n:'Versicherung',d:'Der erste Riss pro Stein kostet keine Punkte.',costs:[2500]}
+];
+const GBONUS=[2,1.5,1.2,1,1];
+const fmtM=v=>fmtInt(v)+' ◈';
+function price(stone,s,shaft,pol){return Math.max(1,Math.round(stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*(pol?1+.15*save.up.pol:1)))}
+const DAILY_X=10;
+const streakBonus=()=>1+Math.min(10,streak())*.1;
+let moneyShown=-1;
+function showMoney(){const e=$('money');e.innerHTML='<i>◈</i>'+fmtInt(save.money);if(moneyShown>=0&&save.money!==moneyShown){e.classList.remove('pop');void e.offsetWidth;e.classList.add('pop')}moneyShown=save.money}
 const WSUM=TYPES.reduce((a,t)=>a+t.w,0);
 const GRADES=[[97,'FL','lupenrein'],[92,'VVS','fast lupenrein'],[85,'VS','sehr fein'],[72,'SI','fein'],[0,'P','Piqué']];
 const gradeIdx=s=>GRADES.findIndex(g=>s>=g[0]);
-function makeStone(seed,sides){const r=rng(seed);let w=r()*WSUM,ti=0;while(w>=TYPES[ti].w){w-=TYPES[ti].w;ti++}
+function makeStone(seed,sides,shaft=0){const r=rng(seed),ex=1/(1+.6*shaft),ws=TYPES.map(t=>Math.pow(t.w,ex)),sum=ws.reduce((a,b)=>a+b,0);
+  let w=r()*sum,ti=0;while(ti<TYPES.length-1&&w>=ws[ti]){w-=ws[ti];ti++}
   const n=sides||5+Math.floor(r()*3),gr=.40+r()*.1,oa=r()*TAU,od=r()*.16;
   const gem=ellipsePoly(r,n,gr,gr*(.7+r()*.3),r()*TAU,.5,Math.cos(oa)*od,Math.sin(oa)*od);
   const rock=ellipsePoly(r,9+Math.floor(r()*4),.95+r()*.07,.86+r()*.1,r()*TAU,.6);
-  return{ti,type:TYPES[ti],gem,rock,ct:Math.round((1+r()*r()*8)*10)/10}}
+  return{ti,type:TYPES[ti],gem,rock,ct:Math.round((1+r()*r()*8)*(1+.5*shaft)*10)/10}}
 const gemColor=(t,sh,i)=>t.iri?`hsl(${t.h+sh*110+i*14} ${t.s}% ${48+sh*30}%)`:t.bright?`hsl(${t.h} ${t.s}% ${62+sh*34}%)`:`hsl(${t.h} ${t.s}% ${32+sh*42}%)`;
 const rockColor=sh=>`hsl(${22+sh*12} ${7+sh*5}% ${16+sh*27}%)`;
 
 /* ---------- Runde ---------- */
 function newRound(mode,stone,cuts,omega){const R={mode,stone,rock:stone.rock,gem:stone.gem,g0:area(stone.gem),cutsMax:cuts,cutsLeft:cuts,cracks:0,crackLines:[],
-    rot:0,omega,done:false,fin:0,panel:false,debris:[],hist:[],t:0};
+    rot:0,omega,done:false,fin:0,panel:false,debris:[],hist:[],t:0,ins:mode==='mine'?save.up.ins:0};
   const a=stone.gem[0],b=stone.gem[1],c=centroid(stone.gem);let nx=b[1]-a[1],ny=a[0]-b[0];const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;
   if(nx*((a[0]+b[0])/2-c[0])+ny*((a[1]+b[1])/2-c[1])<0){nx=-nx;ny=-ny}
   const dx=(b[0]-a[0])/l,dy=(b[1]-a[1])/l,mx=(a[0]+b[0])/2+nx*.09,my=(a[1]+b[1])/2+ny*.09;
@@ -236,9 +291,26 @@ function applyCut(R,A,B){const dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy);if(
   const hit=Math.min(ap,an)>.003*R.g0;
   const offRock=keep>0?rn:rp,offGem=keep>0?gn:gp;
   R.rock=keep>0?rp:rn;R.gem=keep>0?gp:gn;
-  if(hit){R.cracks++;const ch=onLine(R.gem,A,n);if(ch.length>=2)R.crackLines.push([ch[0],ch[ch.length-1]])}
+  let saved=false;
+  if(hit){if(R.ins>0){R.ins--;saved=true}else R.cracks++;const ch=onLine(R.gem,A,n);if(ch.length>=2)R.crackLines.push([ch[0],ch[ch.length-1]])}
   R.cutsLeft--;R.hist.push([A[0],A[1],B[0],B[1]]);
-  return{hit,offRock,offGem,n,keep,chord:onLine(R.rock,A,n)}}
+  return{hit,saved,offRock,offGem,n,keep,chord:onLine(R.rock,A,n)}}
+/* Vorschau ohne Änderung (Lupe) */
+function peek(R,A,B){const dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy);if(l<1e-6)return null;
+  const n=[-dy/l,dx/l],rp=clip(R.rock,A,n,1),rn=clip(R.rock,A,n,-1);if(area(rp)<1e-4||area(rn)<1e-4)return null;
+  const ap=area(clip(R.gem,A,n,1)),an=area(clip(R.gem,A,n,-1)),hit=Math.min(ap,an)>.003*R.g0,ga=Math.max(ap,an),ra=area(ap>=an?rp:rn);
+  return{hit,s:Math.max(0,Math.min(100,(ga/ra)*(ga/R.g0)*100-4*(R.cracks+(hit&&R.ins<=0?1:0))))}}
+/* Führungslinie: rastet an einer Juwelkante ein */
+function snap(R,A,B){const lv=R.mode==='mine'?save.up.guide:0;if(!lv)return null;
+  const td=[0,.035,.055,.08][lv],ta=[0,.10,.17,.25][lv],mg=[0,.02,.012,.006][lv];
+  const dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy);if(l<1e-6)return null;
+  const n=[-dy/l,dx/l],c=centroid(R.gem),g=R.gem;let best=null,bd=1e9;
+  for(let i=0;i<g.length;i++){const a=g[i],b=g[(i+1)%g.length],ex=b[0]-a[0],ey=b[1]-a[1],el=Math.hypot(ex,ey);if(el<.06)continue;
+    if(Math.abs(dx*ey-dy*ex)/(l*el)>ta)continue;
+    const m=Math.max(Math.abs((a[0]-A[0])*n[0]+(a[1]-A[1])*n[1]),Math.abs((b[0]-A[0])*n[0]+(b[1]-A[1])*n[1]));if(m>td||m>=bd)continue;
+    let ox=ey/el,oy=-ex/el;if(ox*((a[0]+b[0])/2-c[0])+oy*((a[1]+b[1])/2-c[1])<0){ox=-ox;oy=-oy}
+    const r5=v=>Math.round(v*1e5)/1e5;bd=m;best=[[r5(a[0]+ox*mg),r5(a[1]+oy*mg)],[r5(b[0]+ox*mg),r5(b[1]+oy*mg)]]}
+  return best}
 
 /* ---------- Ton ---------- */
 let ac=null;
@@ -269,14 +341,16 @@ function buildDaily(){const key=dayKey(),st=makeStone(seedOf(key)),R=newRound('d
   if(d){R.gem=d.p;R.rock=d.p;R.cracks=d.c;R.cutsLeft=R.cutsMax-d.u;R.done=true;R.fin=9;R.final=d.s;R.shown=d.s;R.panel=true}
   else if(save.cur&&save.cur.day===key){for(const c of save.cur.cuts)applyCut(R,[c[0],c[1]],[c[2],c[3]]);R.shown=score(R);if(R.cutsLeft<=0)finish(R,true)}}
 function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine()}
-function nextMine(){mine.level++;const L=mine.level,sides=Math.min(8,5+Math.floor((L-1)/3)),cuts=Math.max(4,sides-(L>=7?1:0));
-  const om=L<3?0:(Math.random()<.5?-1:1)*Math.min(1,.15+.06*(L-3));
-  rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides),cuts,reduce?om*.5:om)}
+function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(8,5+Math.floor((L-1)/3)),cuts=Math.max(4,sides-(L>=7?1:0)-(L>=13?1:0))+save.up.cut;
+  const om=L<3?0:(Math.random()<.5?-1:1)*Math.min(1.3,.15+.06*(L-3))*(1-.2*save.up.slow);
+  mine.shaft=sh;rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides,sh),cuts,reduce?om*.5:om)}
 
 function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round(score(R)*10)/10;const gi=gradeIdx(R.final);
-  if(R.mode==='daily'){save.days[R.key]={s:R.final,c:R.cracks,u:R.cutsMax-R.cutsLeft,t:R.stone.ti,ct:R.stone.ct,p:flat(R.gem)};save.cur=null;persist()}
-  else{R.pts=Math.round(R.final*10);mine.score+=R.pts;if(R.final<50){mine.lives--;R.lost=true}if(mine.lives<=0)mine.over=true;
-    if(mine.score>save.best){save.best=mine.score;mine.record=true;persist()}}
+  if(R.mode==='daily'){save.days[R.key]={s:R.final,c:R.cracks,u:R.cutsMax-R.cutsLeft,t:R.stone.ti,ct:R.stone.ct,p:flat(R.gem)};save.cur=null;
+    R.pay=Math.round(price(R.stone,R.final,save.shaft,false)*DAILY_X*streakBonus());save.days[R.key].m=R.pay;save.money+=R.pay;persist()}
+  else{R.pay=price(R.stone,R.final,mine.shaft,true);save.money+=R.pay;mine.score+=R.pay;if(R.final<50){mine.lives--;R.lost=true}if(mine.lives<=0)mine.over=true;
+    if(mine.score>save.best){save.best=mine.score;mine.record=true}persist()}
+  setTimeout(showMoney,quiet?0:900);
   if(!quiet){sfxWin(gi);crumble(R);buzz(gi<2?[20,40,20,40,60]:25)}
   setTimeout(()=>{R.panel=true;if(R===cur())showPanel(R)},quiet?0:900);
   refreshHud()}
@@ -302,11 +376,11 @@ cv.addEventListener('pointermove',e=>{if(drag)drag.b=pos(e)});
 cv.addEventListener('pointercancel',()=>{drag=null});
 cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;d.b=pos(e);const R=cur();if(!R||R.done)return;
   if(Math.hypot(d.b[0]-d.a[0],d.b[1]-d.a[1])<26)return;
-  const rot=R.rot,res=applyCut(R,toLocal(d.a,rot),toLocal(d.b,rot));
+  const rot=R.rot,la=toLocal(d.a,rot),lb=toLocal(d.b,rot),sn=snap(R,la,lb),res=sn?applyCut(R,sn[0],sn[1]):applyCut(R,la,lb);
   if(!res){sfxMiss();hintWarn=2.2;hint.textContent='Daneben. Der Schnitt muss durch den Stein gehen.';hint.className='hint warn';return}
   save.n++;if(R.mode==='daily')save.cur={day:R.key,cuts:R.hist};persist();
   cutFx(R,res,rot);
-  if(res.hit){sfxCrack();buzz([30,40,60]);hintWarn=2;hint.textContent='Riss im Juwel. 4 Punkte Abzug.';hint.className='hint warn'}
+  if(res.hit){sfxCrack();buzz([30,40,60]);hintWarn=2;hint.textContent=res.saved?'Riss im Juwel. Die Versicherung zahlt, kein Punktabzug.':'Riss im Juwel. 4 Punkte Abzug.';hint.className='hint warn'}
   else{sfxCut(R.cutsMax-R.cutsLeft-1);buzz(12)}
   refreshHud();
   if(R.cutsLeft<=0)setTimeout(()=>finish(R),480)});
@@ -314,9 +388,10 @@ $('doneBtn').addEventListener('click',()=>{const R=cur();if(R&&!R.done&&R.hist.l
 
 /* ---------- HUD ---------- */
 function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,rare=t.w<=5?'<span class="rare">selten</span>':'';
-  $('stoneInfo').innerHTML=(R.mode==='daily'?`Tag ${dayNo(R.key)}`:`Stufe ${mine.level}`)+` · <b>${t.n}</b> · ${fmt(R.stone.ct)} ct`+rare;
-  if(R.mode==='daily'){const s=streak();$('runInfo').textContent=s?`Serie ${s} ${s===1?'Tag':'Tage'}`:'Ein Versuch pro Tag'}
-  else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` ${fmtInt(mine.score)} Pkt`}
+  $('stoneInfo').innerHTML=(R.mode==='daily'?`Tag ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · Stufe ${mine.level}`)+` · <b>${t.n}</b> · ${fmt(R.stone.ct)} ct`+rare;
+  if(R.mode==='daily'){const s=streak();$('runInfo').textContent=R.done?(s?`Serie ${s} ${s===1?'Tag':'Tage'}`:''):`Ein Versuch · zahlt ×${DAILY_X}`}
+  else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` Schicht ${fmtM(mine.score)}`}
+  showMoney();
   let c='';for(let i=0;i<R.cutsMax;i++)c+=`<i class="${i<R.cutsMax-R.cutsLeft?'used':''}"></i>`;
   $('cuts').innerHTML=c+`<span>${R.cutsLeft} ${R.cutsLeft===1?'Schnitt':'Schnitte'}</span>`;
   $('doneBtn').disabled=R.done||!R.hist.length;
@@ -324,20 +399,22 @@ function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,rare=t.w<=
   if(hintWarn<=0){hint.className='hint';hint.textContent=R.done?'':!R.hist.length?(R.omega?'Der Stein dreht sich. Wisch im richtigen Moment.':'Wisch quer über den Stein, um ihn zu schneiden.'):''}}
 
 function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(d.s)],s=streak(),full=Math.round(d.s/20);
-  return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${'◆'.repeat(full)}${'◇'.repeat(5-full)} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')}
+  return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${'◆'.repeat(full)}${'◇'.repeat(5-full)} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+'\nhttps://dashslashtod-wq.github.io/schliff/'}
 
 function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cutsMax-R.cutsLeft;
   const cracks=R.cracks?`<span class="bad">${R.cracks} ${R.cracks===1?'Riss':'Risse'}</span>`:'kein Riss';
   let h=`<div class="res-top"><div class="res-num"><span id="resNum">${reduce?fmt(R.final):'0,0'}</span><small>%</small></div><div class="stamp">${g[1]}<small>${g[2]}</small></div></div>`;
   h+=`<p class="res-line"><b>${t.n}</b> · ${fmt(R.stone.ct)} ct · ${used} ${used===1?'Schnitt':'Schnitte'} · ${cracks}</p>`;
   if(R.mode==='daily'){
+    const m=R.pay||(save.days[R.key]&&save.days[R.key].m);
+    if(m)h+=`<p class="res-line"><b class="gain">+${fmtM(m)}</b> · Tagesstein zahlt ×${DAILY_X}, dazu Serien-Bonus</p>`;
     h+=`<p class="res-line">Nächster Stein in <span id="cd">${countdown()}</span></p>`;
     h+=`<div class="res-btns"><button class="btn primary" id="shareBtn">Ergebnis kopieren</button><button class="btn" id="toMine">Weiter in der Mine</button></div><textarea id="shareTxt" hidden readonly aria-label="Ergebnis zum Kopieren"></textarea>`;
   }else if(mine.over){
-    h+=`<p class="res-line"><span class="bad">Schicht vorbei.</span> <b>${fmtInt(mine.score)} Punkte</b> in ${mine.level} ${mine.level===1?'Stein':'Steinen'}. ${mine.record?'Neuer Rekord.':'Rekord: '+fmtInt(save.best)+'.'}</p>`;
-    h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">Neue Schicht</button></div>`;
+    h+=`<p class="res-line"><b class="gain">+${fmtM(R.pay)}</b> · <span class="bad">Schicht vorbei.</span> <b>${fmtM(mine.score)}</b> in ${mine.level} ${mine.level===1?'Stein':'Steinen'}. ${mine.record?'Neuer Rekord.':'Rekord: '+fmtM(save.best)+'.'}</p>`;
+    h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">Neue Schicht</button><button class="btn" id="toShop">Zum Laden</button></div>`;
   }else{
-    h+=`<p class="res-line"><b>+${fmtInt(R.pts)} Punkte</b>${R.lost?' · <span class="bad">unter 50 %, ein Leben weg</span>':''}</p>`;
+    h+=`<p class="res-line">Verkauft für <b class="gain">+${fmtM(R.pay)}</b>${R.lost?' · <span class="bad">unter 50 %, ein Leben weg</span>':''}</p>`;
     h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">Nächster Stein</button></div>`;
   }
   panel.innerHTML=h;panel.hidden=false;R.cnt=reduce?1:0;
@@ -345,6 +422,7 @@ function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cu
       fb=()=>{const ta=$('shareTxt');ta.value=txt;ta.hidden=false;ta.focus();ta.select()};
     try{navigator.clipboard.writeText(txt).then(ok,fb)}catch(e){fb()}});
   const tm=$('toMine');if(tm)tm.addEventListener('click',()=>setView('mine'));
+  const ts=$('toShop');if(ts)ts.addEventListener('click',()=>setView('shop'));
   const nb=$('nextBtn');if(nb)nb.addEventListener('click',()=>{audio();if(mine.over)startMine();else nextMine();panel.hidden=true;parts=[];refreshHud()})}
 
 function countdown(){const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1),s=Math.max(0,Math.floor((m-n)/1000)),p=v=>String(v).padStart(2,'0');
@@ -363,7 +441,7 @@ function gemSVG(p,t){const c=centroid(p);let m=0;for(const v of p)m=Math.max(m,M
   return s+'</svg>'}
 function renderVitrine(){const today=dayKey(),keys=Object.keys(save.days).sort(),n=keys.length;
   let best=0;for(const k of keys)best=Math.max(best,save.days[k].s);
-  $('stats').innerHTML=[['Serie',streak()+(streak()===1?' Tag':' Tage')],['Steine',n],['Bester Schliff',n?fmt(best)+' %':'–'],['Mine-Rekord',save.best?fmtInt(save.best):'–']]
+  $('stats').innerHTML=[['Serie',streak()+(streak()===1?' Tag':' Tage')],['Steine',n],['Bester Schliff',n?fmt(best)+' %':'–'],['Beste Schicht',save.best?fmtM(save.best):'–']]
     .map(a=>`<div><dt>${a[0]}</dt><dd>${a[1]}</dd></div>`).join('');
   let start=keys[0]&&keys[0]<today?keys[0]:today;if(dayNo(today)-dayNo(start)>55)start=addDays(today,-55);
   let h='',count=0;
@@ -426,7 +504,13 @@ function draw(R){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);if(!R)
   if(drag){ctx.setTransform(dpr,0,0,dpr,0,0);const a=drag.a,b=drag.b,dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy);
     if(l>4){const ux=dx/l,uy=dy/l,far=W+H;ctx.lineCap='round';
       ctx.strokeStyle='rgba(226,181,87,.4)';ctx.lineWidth=1.5;ctx.setLineDash([6,7]);ctx.beginPath();ctx.moveTo(a[0]-ux*far,a[1]-uy*far);ctx.lineTo(b[0]+ux*far,b[1]+uy*far);ctx.stroke();ctx.setLineDash([]);
-      ctx.shadowColor='#e2b557';ctx.shadowBlur=10*dpr;ctx.strokeStyle=l<26?'rgba(226,181,87,.5)':'#f6dc9a';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.shadowBlur=0}}}
+      ctx.shadowColor='#e2b557';ctx.shadowBlur=10*dpr;ctx.strokeStyle=l<26?'rgba(226,181,87,.5)':'#f6dc9a';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.shadowBlur=0;
+      if(l>=26&&R.mode==='mine'&&(save.up.guide||save.up.lupe)){const la=toLocal(a,R.rot),lb=toLocal(b,R.rot),sn=snap(R,la,lb);
+        if(sn){const p=toWorld(sn[0],R.rot),q=toWorld(sn[1],R.rot),px=V.cx+p[0]*V.S,py=V.cy+p[1]*V.S,qx=V.cx+q[0]*V.S,qy=V.cy+q[1]*V.S,ex=(qx-px),ey=(qy-py),el=Math.hypot(ex,ey)||1;
+          ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px-ex/el*40,py-ey/el*40);ctx.lineTo(qx+ex/el*40,qy+ey/el*40);ctx.stroke()}
+        if(save.up.lupe){const pk=sn?peek(R,sn[0],sn[1]):peek(R,la,lb);if(pk){const tx=Math.max(50,Math.min(W-50,b[0])),ty=Math.max(24,b[1]-22),txt=fmt(pk.s)+' %';
+            ctx.font='500 15px "DM Mono",ui-monospace,monospace';ctx.textAlign='center';ctx.textBaseline='middle';const tw=ctx.measureText(txt).width+16;
+            ctx.fillStyle='rgba(19,26,32,.9)';ctx.fillRect(tx-tw/2,ty-13,tw,26);ctx.fillStyle=pk.hit?'#ff6f5a':'#f6dc9a';ctx.fillText(txt,tx,ty)}}}}}}
 
 function update(R,dt){if(hintWarn>0){hintWarn-=dt;if(hintWarn<=0)refreshHud()}
   shake=shake>.001?shake*Math.exp(-dt*10):0;
@@ -443,16 +527,33 @@ function update(R,dt){if(hintWarn>0){hintWarn-=dt;if(hintWarn<=0)refreshHud()}
 
 let last=performance.now();
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
-  if(view!=='vitrine'){const R=cur();update(R,dt);if(W&&H)draw(R)}
+  if(view==='daily'||view==='mine'){const R=cur();update(R,dt);if(W&&H)draw(R)}
   requestAnimationFrame(frame)}
 
 /* ---------- Ansichten ---------- */
 function setView(v){view=v;for(const b of document.querySelectorAll('.tabs button'))b.setAttribute('aria-selected',b.dataset.view===v?'true':'false');
-  $('playView').hidden=v==='vitrine';$('vitrineView').hidden=v!=='vitrine';
+  $('playView').hidden=v==='vitrine'||v==='shop';$('vitrineView').hidden=v!=='vitrine';$('shopView').hidden=v!=='shop';
   if(v==='vitrine'){renderVitrine();return}
+  if(v==='shop'){renderShop();return}
   if(v==='mine'&&!rounds.mine)startMine();
   drag=null;parts=[];hintWarn=0;panel.hidden=true;const R=cur();if(R.panel)showPanel(R);refreshHud();resize()}
 for(const b of document.querySelectorAll('.tabs button'))b.addEventListener('click',()=>setView(b.dataset.view));
+
+/* ---------- Laden ---------- */
+function sfxBuy(){const c=audio();if(!c)return;const t=c.currentTime;tone(c,'triangle',880,t,.004,.12,.18);tone(c,'triangle',1318.5,t+.07,.004,.25,.18)}
+function renderShop(){showMoney();
+  $('shafts').innerHTML=SHAFTS.map((s,i)=>{const own=i<=save.shaft,next=i===save.shaft+1;
+    const btn=own?`<button class="buy${i===save.sel?' on':''}" data-shaft="${i}" ${i===save.sel?'disabled':''}>${i===save.sel?'Aktiv':'Einfahren'}</button>`
+      :`<button class="buy" data-unlock="${i}" ${next&&save.money>=s.cost?'':'disabled'}>${fmtM(s.cost)}</button>`;
+    return`<li><div class="txt"><div class="nm">${s.n}</div><div class="ds">${own||next?s.d:'Erst den Schacht davor freischalten.'}</div></div>${btn}</li>`}).join('');
+  $('tools').innerHTML=TOOLS.map(t=>{const lv=save.up[t.k],max=t.costs.length,c=t.costs[lv];
+    const btn=lv>=max?`<button class="buy on" disabled>Maximal</button>`:`<button class="buy" data-tool="${t.k}" ${save.money>=c?'':'disabled'}>${fmtM(c)}</button>`;
+    return`<li><div class="txt"><div class="nm">${t.n}${max>1||lv?`<span class="lv">Stufe ${lv}/${max}</span>`:''}</div><div class="ds">${t.d}</div></div>${btn}</li>`}).join('')}
+$('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy');if(!b||b.disabled)return;audio();
+  if(b.dataset.tool){const t=TOOLS.find(x=>x.k===b.dataset.tool),c=t.costs[save.up[t.k]];if(c===undefined||save.money<c)return;save.money-=c;save.up[t.k]++;sfxBuy()}
+  else if(b.dataset.unlock){const i=+b.dataset.unlock;if(i!==save.shaft+1||save.money<SHAFTS[i].cost)return;save.money-=SHAFTS[i].cost;save.shaft=i;save.sel=i;rounds.mine=null;sfxBuy()}
+  else if(b.dataset.shaft){save.sel=+b.dataset.shaft;rounds.mine=null}
+  persist();renderShop()});
 const sndBtn=$('sndBtn');function sndLabel(){sndBtn.textContent=save.snd?'Ton an':'Ton aus';sndBtn.setAttribute('aria-pressed',save.snd?'true':'false')}
 sndBtn.addEventListener('click',()=>{save.snd=!save.snd;persist();sndLabel();if(save.snd)sfxMiss()});
 function closeIntro(v){save.seen=true;persist();$('intro').hidden=true;audio();if(v!==view)setView(v)}
