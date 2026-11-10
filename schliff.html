@@ -37,6 +37,10 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 
 .money{font-family:var(--f-num);font-size:.95rem;font-weight:500;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
 .money i{font-style:normal;color:var(--brass);margin-right:4px}
+.collect{border:1px solid var(--brass);background:none;color:var(--brass);border-radius:999px;padding:5px 11px;font-family:var(--f-num);font-size:.8rem;font-weight:500;white-space:nowrap}
+.collect:hover,.collect.full{background:var(--brass);color:var(--brass-ink)}
+.intro p{margin:0 0 14px;color:var(--ink-dim)}
+.intro p b,.note b{color:var(--ink);font-weight:600}
 .money.pop{animation:pop .45s ease-out}
 @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.22);color:var(--brass)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.money.pop{animation:none}}
@@ -134,6 +138,7 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
     <h1 class="logo">Schliff</h1>
     <div class="top-right">
       <span class="streak" id="streak"></span>
+      <button class="collect" id="collect" hidden></button>
       <span class="money" id="money" title="Dein Geld"></span>
       <button class="ghost-btn" id="sndBtn" aria-pressed="true">Ton an</button>
     </div>
@@ -152,6 +157,11 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
       <canvas id="cv" aria-label="Stein auf der Werkbank. Zum Schneiden quer über den Stein wischen."></canvas>
       <p class="hint" id="hint"></p>
       <div class="panel" id="panel" hidden></div>
+      <div class="intro" id="back" hidden>
+        <h2>Willkommen zurück.</h2>
+        <p id="backTxt"></p>
+        <div class="res-btns"><button class="btn primary" id="backBtn">Einsammeln</button></div>
+      </div>
       <div class="intro" id="intro" hidden>
         <h2>Leg das Juwel frei.</h2>
         <ol>
@@ -173,6 +183,9 @@ button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
   </section>
 
   <section class="view" id="shopView" hidden>
+    <h2>Werkstatt</h2>
+    <p class="note" id="idleInfo"></p>
+    <ul class="shop-list" id="idle"></ul>
     <h2>Schächte</h2>
     <ul class="shop-list" id="shafts"></ul>
     <h2>Hilfsmittel</h2>
@@ -200,7 +213,10 @@ const fmtInt=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 const KEY='schliff.v1';
 let save={days:{},best:0,snd:true,seen:false,cur:null,n:0,money:0,shaft:0,sel:0,up:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'&&s.days)save=Object.assign(save,s)}catch(e){}
-save.up=Object.assign({lupe:0,guide:0,cut:0,slow:0,ins:0,pol:0},save.up);
+save.up=Object.assign({lupe:0,guide:0,cut:0,ins:0,pol:0,work:0,store:0},save.up);
+/* Zeitlupe gibt es nicht mehr: Kaufpreis zurückzahlen */
+if(save.up.slow){save.money=(+save.money||0)+[0,600,3600,17600][Math.min(3,save.up.slow|0)]}delete save.up.slow;
+save.bank=Math.max(0,+save.bank||0);save.idleT=+save.idleT||0;
 save.money=+save.money||0;save.shaft=Math.max(0,Math.min(4,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
 
@@ -243,7 +259,7 @@ const TYPES=[
 /* ---------- Wirtschaft ---------- */
 const SHAFTS=[
   {n:'Tagebau',d:'Leichte Steine, kleine Preise.',cost:0,mult:1},
-  {n:'Schacht 2',d:'Preise ×3. Steine drehen sich früher.',cost:600,mult:3},
+  {n:'Schacht 2',d:'Preise ×3. Mehr Kanten, weniger Schnitte.',cost:600,mult:3},
   {n:'Schacht 3',d:'Preise ×9. Mehr seltene Steine.',cost:4000,mult:9},
   {n:'Schacht 4',d:'Preise ×27. Viele Kanten, wenig Schnitte.',cost:25000,mult:27},
   {n:'Tiefensohle',d:'Preise ×80. Nur für ruhige Hände.',cost:150000,mult:80}
@@ -251,11 +267,21 @@ const SHAFTS=[
 const TOOLS=[
   {k:'lupe',n:'Lupe',d:'Zeigt vor dem Loslassen, wie rein der Stein nach dem Schnitt ist.',costs:[300]},
   {k:'pol',n:'Polierer',d:'Jede Stufe: 15 % mehr Verkaufspreis.',costs:[400,1500,6000,25000,100000]},
-  {k:'slow',n:'Zeitlupe',d:'Jede Stufe: Steine drehen sich 20 % langsamer.',costs:[600,3000,14000]},
   {k:'guide',n:'Führungslinie',d:'Der Schnitt rastet an der Juwelkante ein. Höhere Stufe: rastet früher und knapper.',costs:[800,5000,30000]},
   {k:'cut',n:'Extra-Schnitt',d:'Jede Stufe: ein Schnitt mehr pro Stein.',costs:[1500,12000]},
   {k:'ins',n:'Versicherung',d:'Der erste Riss pro Stein kostet keine Punkte.',costs:[2500]}
 ];
+/* Werkstatt: verdient auch, wenn nicht gespielt wird */
+const IDLE=[
+  {k:'work',n:'Lehrlinge',d:'Schleifen und verkaufen Steine, auch wenn du nicht spielst. Jede Stufe verdient mehr pro Stunde.',costs:[150,1200,6000,30000,120000,500000,2000000],rate:[0,60,150,350,800,1800,4000,9000]},
+  {k:'store',n:'Lager',d:'Ist das Lager voll, hören die Lehrlinge auf. Jede Stufe fasst mehr Stunden.',costs:[800,5000,30000,200000],hours:[2,4,8,12,24]}
+];
+const idleRate=()=>IDLE[0].rate[save.up.work]*SHAFTS[save.shaft].mult;
+const idleHours=()=>IDLE[1].hours[save.up.store];
+const idleCap=()=>idleRate()*idleHours();
+function accrue(){const now=Date.now();if(!save.idleT||now<save.idleT)save.idleT=now;
+  save.bank=Math.min(Math.max(idleCap(),save.bank),save.bank+idleRate()*(now-save.idleT)/3.6e6);save.idleT=now}
+const fmtDur=ms=>{const m=Math.floor(ms/6e4),h=Math.floor(m/60);return h?`${h} h ${m%60} min`:`${m} min`};
 const GBONUS=[2,1.5,1.2,1,1];
 const fmtM=v=>fmtInt(v)+' ◈';
 function price(stone,s,shaft,pol){return Math.max(1,Math.round(stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*(pol?1+.15*save.up.pol:1)))}
@@ -341,9 +367,8 @@ function buildDaily(){const key=dayKey(),st=makeStone(seedOf(key)),R=newRound('d
   if(d){R.gem=d.p;R.rock=d.p;R.cracks=d.c;R.cutsLeft=R.cutsMax-d.u;R.done=true;R.fin=9;R.final=d.s;R.shown=d.s;R.panel=true}
   else if(save.cur&&save.cur.day===key){for(const c of save.cur.cuts)applyCut(R,[c[0],c[1]],[c[2],c[3]]);R.shown=score(R);if(R.cutsLeft<=0)finish(R,true)}}
 function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine()}
-function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(8,5+Math.floor((L-1)/3)),cuts=Math.max(4,sides-(L>=7?1:0)-(L>=13?1:0))+save.up.cut;
-  const om=L<3?0:(Math.random()<.5?-1:1)*Math.min(1.3,.15+.06*(L-3))*(1-.2*save.up.slow);
-  mine.shaft=sh;rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides,sh),cuts,reduce?om*.5:om)}
+function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(9,5+Math.floor((L-1)/3)),cuts=Math.max(4,sides-Math.floor(L/6))+save.up.cut;
+  mine.shaft=sh;rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides,sh),cuts,0)}
 
 function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round(score(R)*10)/10;const gi=gradeIdx(R.final);
   if(R.mode==='daily'){save.days[R.key]={s:R.final,c:R.cracks,u:R.cutsMax-R.cutsLeft,t:R.stone.ti,ct:R.stone.ct,p:flat(R.gem)};save.cur=null;
@@ -371,7 +396,7 @@ function crumble(R){if(reduce)return;const p=R.rock,rot=R.rot;for(let i=0;i<p.le
 /* ---------- Eingabe ---------- */
 const pos=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]};
 const toLocal=(p,rot)=>{const x=(p[0]-V.cx)/V.S,y=(p[1]-V.cy)/V.S,c=Math.cos(-rot),s=Math.sin(-rot);return[Math.round((x*c-y*s)*1e5)/1e5,Math.round((x*s+y*c)*1e5)/1e5]};
-cv.addEventListener('pointerdown',e=>{const R=cur();if(!R||R.done||!$('intro').hidden)return;audio();try{cv.setPointerCapture(e.pointerId)}catch(_){}const p=pos(e);drag={a:p,b:p};e.preventDefault()});
+cv.addEventListener('pointerdown',e=>{const R=cur();if(!R||R.done||!$('intro').hidden||!$('back').hidden)return;audio();try{cv.setPointerCapture(e.pointerId)}catch(_){}const p=pos(e);drag={a:p,b:p};e.preventDefault()});
 cv.addEventListener('pointermove',e=>{if(drag)drag.b=pos(e)});
 cv.addEventListener('pointercancel',()=>{drag=null});
 cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;d.b=pos(e);const R=cur();if(!R||R.done)return;
@@ -427,7 +452,7 @@ function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cu
 
 function countdown(){const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1),s=Math.max(0,Math.floor((m-n)/1000)),p=v=>String(v).padStart(2,'0');
   return p(Math.floor(s/3600))+':'+p(Math.floor(s/60)%60)+':'+p(s%60)}
-setInterval(()=>{const e=$('cd');if(e)e.textContent=countdown();
+setInterval(()=>{const e=$('cd');if(e)e.textContent=countdown();accrue();updateCollect();
   if(rounds.daily&&rounds.daily.key!==dayKey()){buildDaily();if(view==='daily'){panel.hidden=true;const R=cur();if(R.panel)showPanel(R);refreshHud()}}},1000);
 
 /* ---------- Vitrine ---------- */
@@ -546,11 +571,22 @@ function renderShop(){showMoney();
     const btn=own?`<button class="buy${i===save.sel?' on':''}" data-shaft="${i}" ${i===save.sel?'disabled':''}>${i===save.sel?'Aktiv':'Einfahren'}</button>`
       :`<button class="buy" data-unlock="${i}" ${next&&save.money>=s.cost?'':'disabled'}>${fmtM(s.cost)}</button>`;
     return`<li><div class="txt"><div class="nm">${s.n}</div><div class="ds">${own||next?s.d:'Erst den Schacht davor freischalten.'}</div></div>${btn}</li>`}).join('');
-  $('tools').innerHTML=TOOLS.map(t=>{const lv=save.up[t.k],max=t.costs.length,c=t.costs[lv];
+  const row=t=>{const lv=save.up[t.k],max=t.costs.length,c=t.costs[lv];
     const btn=lv>=max?`<button class="buy on" disabled>Maximal</button>`:`<button class="buy" data-tool="${t.k}" ${save.money>=c?'':'disabled'}>${fmtM(c)}</button>`;
-    return`<li><div class="txt"><div class="nm">${t.n}${max>1||lv?`<span class="lv">Stufe ${lv}/${max}</span>`:''}</div><div class="ds">${t.d}</div></div>${btn}</li>`}).join('')}
+    return`<li><div class="txt"><div class="nm">${t.n}${max>1||lv?`<span class="lv">Stufe ${lv}/${max}</span>`:''}</div><div class="ds">${t.d}</div></div>${btn}</li>`};
+  $('tools').innerHTML=TOOLS.map(row).join('');$('idle').innerHTML=IDLE.map(row).join('');
+  const r=idleRate();
+  $('idleInfo').innerHTML=r?`Deine Lehrlinge verdienen <b>${fmtM(r)} pro Stunde</b>, auch wenn das Spiel zu ist. Das Lager fasst ${idleHours()} Stunden, also ${fmtM(idleCap())}. Jeder tiefere Schacht erhöht den Verdienst.`
+    :'Noch keine Lehrlinge. Stell welche ein, dann verdienst du Geld, auch wenn du nicht spielst.';
+  updateCollect()}
+function updateCollect(){const b=Math.floor(save.bank),e=$('collect');e.hidden=b<1;if(b>=1){e.textContent=`+${fmtInt(b)} ◈`;e.classList.toggle('full',save.bank>=idleCap()-.5);
+    e.title=save.bank>=idleCap()-.5?'Lager voll. Einsammeln.':'Verdienst der Lehrlinge einsammeln.'}}
+function collect(){accrue();const n=Math.floor(save.bank);if(n<1)return;save.bank-=n;save.money+=n;persist();audio();sfxBuy();showMoney();updateCollect();if(view==='shop')renderShop()}
+$('collect').addEventListener('click',collect);
+$('backBtn').addEventListener('click',()=>{$('back').hidden=true;collect()});
 $('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy');if(!b||b.disabled)return;audio();
-  if(b.dataset.tool){const t=TOOLS.find(x=>x.k===b.dataset.tool),c=t.costs[save.up[t.k]];if(c===undefined||save.money<c)return;save.money-=c;save.up[t.k]++;sfxBuy()}
+  accrue();
+  if(b.dataset.tool){const t=[...IDLE,...TOOLS].find(x=>x.k===b.dataset.tool),c=t.costs[save.up[t.k]];if(c===undefined||save.money<c)return;save.money-=c;save.up[t.k]++;sfxBuy()}
   else if(b.dataset.unlock){const i=+b.dataset.unlock;if(i!==save.shaft+1||save.money<SHAFTS[i].cost)return;save.money-=SHAFTS[i].cost;save.shaft=i;save.sel=i;rounds.mine=null;sfxBuy()}
   else if(b.dataset.shaft){save.sel=+b.dataset.shaft;rounds.mine=null}
   persist();renderShop()});
@@ -560,7 +596,11 @@ function closeIntro(v){save.seen=true;persist();$('intro').hidden=true;audio();i
 $('introDaily').addEventListener('click',()=>closeIntro('daily'));
 $('introMine').addEventListener('click',()=>closeIntro('mine'));
 
-buildDaily();sndLabel();
+{const away=save.idleT?Date.now()-save.idleT:0,before=save.bank;accrue();const n=Math.floor(save.bank);persist();
+  if(save.up.work>0&&away>5*6e4&&n>=1&&save.bank>before){const full=save.bank>=idleCap()-.5;
+    $('backTxt').innerHTML=`Du warst ${fmtDur(away)} weg. Im Lager liegen <b>${fmtM(n)}</b> von deinen Lehrlingen.`+(full?' Das Lager ist voll. Ein größeres Lager fasst mehr.':'');
+    $('back').hidden=false}}
+buildDaily();sndLabel();updateCollect();
 if(!save.seen&&!rounds.daily.done)$('intro').hidden=false;
 setView('daily');
 new ResizeObserver(resize).observe(bench);resize();
