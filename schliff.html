@@ -18,6 +18,10 @@
   --brass-ink:#3a2500;
   --mint:#6fe3b4;
   --sky:#9cc2ff;
+  --r0:#9aa2c7;
+  --r1:#6fe3b4;
+  --r2:#9cc2ff;
+  --r3:#c9a0ff;
   --crack:#ff7a6b;
   --glow:rgba(255,201,77,.45);
   --f-display:'Fredoka','Trebuchet MS',system-ui,sans-serif;
@@ -60,9 +64,20 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
 .hud-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;font-size:.88rem;color:var(--ink-dim)}
 .hud-top b{color:var(--ink);font-weight:800}
-.rare{margin-left:6px;padding:2px 9px;border-radius:999px;background:var(--sky);color:var(--shade);font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
-.rare.t2{background:var(--mint)}
-.rare.t3{background:var(--brass);color:var(--brass-ink);animation:nudge 1.4s ease-in-out infinite;display:inline-block}
+.rare{display:inline-block;margin-left:6px;padding:1px 9px;border-radius:999px;background:var(--r0);color:var(--shade);font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;line-height:1.6}
+.rare.t1{background:var(--r1)}
+.rare.t2{background:var(--r2)}
+.rare.t3{background:var(--r3)}
+.rare.t4{background:var(--brass);color:var(--brass-ink);animation:nudge 1.4s ease-in-out infinite}
+.bench.epic{box-shadow:inset 0 0 0 3px var(--r3)}
+.bench.legend{animation:legend 1.6s ease-in-out infinite}
+@keyframes legend{0%,100%{box-shadow:inset 0 0 0 3px var(--brass),inset 0 0 40px rgba(255,201,77,.25)}50%{box-shadow:inset 0 0 0 5px var(--brass),inset 0 0 90px rgba(255,201,77,.5)}}
+.slot.r1{border-color:var(--r1)}
+.slot.r2{border-color:var(--r2)}
+.slot.r3{border-color:var(--r3)}
+.slot.r4{border-color:var(--brass)}
+.banner.epic b{color:var(--r3)}
+.banner.big b{font-size:clamp(2.6rem,12vw,4.8rem)}
 #runInfo{font-family:var(--f-num);font-weight:500}
 .life{color:var(--crack)}.life.off{color:var(--line)}
 
@@ -158,7 +173,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .banner.rare b{color:var(--mint)}
 .banner.show{animation:bannerIn 1.9s cubic-bezier(.2,1.3,.4,1) both}
 @keyframes bannerIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}22%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
-@media (prefers-reduced-motion:reduce){.panel,.money.pop,.collect.full,.rare.t3,.flash.go,.banner.show{animation:none}}
+@media (prefers-reduced-motion:reduce){.panel,.money.pop,.collect.full,.rare.t4,.flash.go,.banner.show{animation:none}}
 </style>
 
 <div class="app">
@@ -337,8 +352,9 @@ function makeStone(seed,sides,shaft=0){const r=rng(seed),ex=1/(1+.6*shaft),ws=TY
   return{ti,type:TYPES[ti],gem,rock,ct:Math.round((1+r()*r()*8)*(1+.5*shaft)*10)/10}}
 const gemColor=(t,sh,i)=>t.iri?`hsl(${t.h+sh*110+i*14} ${t.s}% ${48+sh*30}%)`:t.bright?`hsl(${t.h} ${t.s}% ${62+sh*34}%)`:`hsl(${t.h} ${t.s}% ${32+sh*42}%)`;
 const rockColor=sh=>`hsl(${26+sh*10} ${14+sh*7}% ${25+sh*30}%)`;
-const TIER=['','Edel','Selten','Legendär'],TIERSUB=['','','Seltener Fund','Legendärer Fund'];
-const tier=t=>t.v>=16?3:t.v>=9?2:t.v>=4?1:0;
+/* Seltenheit: 0 gewöhnlich (40 %), 1 ungewöhnlich (30 %), 2 selten (22 %), 3 episch (5 %), 4 legendär (3 %) im Tagebau */
+const TIER=['Gewöhnlich','Ungewöhnlich','Selten','Episch','Legendär'],TIERSUB=['','','','Epischer Fund','Legendärer Fund'];
+const tier=t=>t.v>=16?4:t.v>=9?3:t.v>=4?2:t.v>=2?1:0;
 
 /* ---------- Runde ---------- */
 function newRound(mode,stone,cuts,omega){const R={mode,stone,rock:stone.rock,gem:stone.gem,g0:area(stone.gem),cutsMax:cuts,cutsLeft:cuts,cracks:0,crackLines:[],
@@ -395,6 +411,9 @@ const buzz=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
 
 function sfxRare(tr){const c=audio();if(!c)return;const t=c.currentTime,N=[1046.5,1318.5,1568,2093,2637];
   for(let i=0;i<(tr>=3?5:tr>=2?4:2);i++){tone(c,'sine',N[i],t+i*.07,.01,.6,.1);tone(c,'triangle',N[i]/2,t+i*.07,.01,.35,.06)}}
+function sfxLegend(){const c=audio();if(!c)return;const t=c.currentTime;tone(c,'sine',80,t,.01,1.1,.55,32);noise(c,t,.9,'lowpass',900,120,.35);
+  [523.25,659.25,783.99,1046.5,1318.5,1568,2093,2637].forEach((f,i)=>{tone(c,'triangle',f,t+.12+i*.075,.005,.5,.15);tone(c,'sine',f*2,t+.12+i*.075,.005,.35,.06)});
+  [1046.5,1318.5,1568,2093].forEach(f=>tone(c,'sine',f,t+.85,.02,1.2,.09))}
 function sfxCoins(n){const c=audio();if(!c)return;const t=c.currentTime;for(let i=0;i<Math.min(n,14);i++)tone(c,'triangle',1500+Math.random()*900,t+.5+i*.05,.002,.07,.07)}
 function sfxJackpot(){const c=audio();if(!c)return;const t=c.currentTime+.15;[523.25,659.25,783.99,1046.5,783.99,1046.5,1318.5,1568].forEach((f,i)=>{tone(c,'triangle',f,t+i*.08,.005,.3,.14);tone(c,'sine',f*2,t+i*.08,.005,.2,.05)})}
 
@@ -445,7 +464,7 @@ function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round
     if(mine.score>save.best){save.best=mine.score;mine.record=true}persist()}
   if(quiet)showMoney();
   else{const tr=tier(R.stone.type),daily=R.mode==='daily',ratio=R.pay/(58*SHAFTS[daily?save.shaft:mine.shaft].mult);
-    const jack=R.final>=50&&(ratio>=20||(tr>=2&&gi<=1)||(daily&&gi<=1)),big=jack||ratio>=5||gi===0||daily;
+    const jack=R.final>=50&&(ratio>=20||tr===4||(tr===3&&gi<=1)||(daily&&gi<=1)),big=jack||ratio>=5||gi===0||daily;
     moneyHold=Date.now()+1500;
     setTimeout(()=>{if(R===cur()){coins(jack?40:big?20:7,gemScreen());sfxCoins(jack?14:big?9:4)}
       if(jack){banner('Volltreffer!','+'+fmtM(R.pay),'gold');flash('var(--brass)');confetti(90);sfxJackpot()}
@@ -472,9 +491,13 @@ function floatTxt(p,txt,color){floats.push({x:p[0],y:p[1],txt,color,life:1.2,max
 function burst(R,n){if(reduce)return;const c=toWorld(centroid(R.gem),R.rot),t=R.stone.type;
   for(let i=0;i<n;i++){const a=Math.random()*TAU,sp=.5+Math.random()*1.6;spawn(c[0],c[1],Math.cos(a)*sp,Math.sin(a)*sp-.6,i%3?gemColor(t,Math.random(),i):'#fff8ea',.014+Math.random()*.03,.7+Math.random()*.8)}}
 /* Besonderer Stein: beim ersten Zeigen ankündigen */
-function announce(R){if(!R||R.announced||R.done||R.hist.length)return;R.announced=true;const t=R.stone.type,tr=tier(t);if(!tr)return;
-  sfxRare(tr);burst(R,tr===3?70:tr===2?40:16);
-  if(tr>=2){banner(t.n+'!',TIERSUB[tr],tr===3?'gold':'rare');flash(`hsl(${t.h} ${t.s}% 72%)`);buzz(tr===3?[30,50,30,50,80]:[20,40,40])}}
+function announce(R){if(!R||R.announced||R.done||R.hist.length)return;R.announced=true;const t=R.stone.type,tr=tier(t);if(tr<2)return;
+  if(tr===2){sfxRare(1);burst(R,16);return}
+  /* Episch: kleiner Effekt */
+  if(tr===3){sfxRare(2);burst(R,45);banner(t.n+'!',TIERSUB[3],'epic');flash('var(--r3)');buzz([20,40,40]);return}
+  /* Legendär: alles auf einmal */
+  sfxLegend();burst(R,130);banner(t.n+'!',TIERSUB[4],'gold big');flash('#ffffff');confetti(120);if(!reduce)shake=.09;buzz([40,60,40,60,40,60,120]);
+  setTimeout(()=>{flash('var(--brass)');if(R===cur()&&!R.done){burst(R,70);if(!reduce)shake=.05}},320)}
 function crumble(R){if(reduce)return;const p=R.rock,rot=R.rot;for(let i=0;i<p.length;i++){const a=toWorld(p[i],rot),b=toWorld(p[(i+1)%p.length],rot);
     for(let k=0;k<6;k++){const u=Math.random();spawn(a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u,(Math.random()-.5)*1.2,(Math.random()-.9)*.9,rockColor(Math.random()),.012+Math.random()*.028,.6+Math.random()*.7)}}}
 
@@ -500,7 +523,8 @@ cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;d.b=p
 $('doneBtn').addEventListener('click',()=>{const R=cur();if(R&&!R.done&&R.hist.length){audio();finish(R)}});
 
 /* ---------- HUD ---------- */
-function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t),rare=tr?`<span class="rare t${tr}">${TIER[tr]}</span>`:'';
+function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t),rare=`<span class="rare t${tr}">${TIER[tr]}</span>`;
+  bench.classList.toggle('epic',tr===3&&!R.done);bench.classList.toggle('legend',tr===4&&!R.done);
   $('stoneInfo').innerHTML=(R.mode==='daily'?`Tag ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · Stufe ${mine.level}`)+` · <b>${t.n}</b> · ${fmt(R.stone.ct)} ct`+rare;
   if(R.mode==='daily'){const s=streak();$('runInfo').textContent=R.done?(s?`Serie ${s} ${s===1?'Tag':'Tage'}`:''):`Ein Versuch · zahlt ×${DAILY_X}`}
   else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` Schicht ${fmtM(mine.score)}`}
@@ -517,7 +541,7 @@ function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(
 function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cutsMax-R.cutsLeft;
   const cracks=R.cracks?`<span class="bad">${R.cracks} ${R.cracks===1?'Riss':'Risse'}</span>`:'kein Riss';
   let h=`<div class="res-top"><div class="res-num"><span id="resNum">${reduce?fmt(R.final):'0,0'}</span><small>%</small></div><div class="stamp">${g[1]}<small>${g[2]}</small></div></div>`;
-  h+=`<p class="res-line"><b>${t.n}</b> · ${fmt(R.stone.ct)} ct · ${used} ${used===1?'Schnitt':'Schnitte'} · ${cracks}</p>`;
+  h+=`<p class="res-line"><b>${t.n}</b><span class="rare t${tier(t)}">${TIER[tier(t)]}</span> · ${fmt(R.stone.ct)} ct · ${used} ${used===1?'Schnitt':'Schnitte'} · ${cracks}</p>`;
   if(R.mode==='daily'){
     const m=R.pay||(save.days[R.key]&&save.days[R.key].m);
     if(m)h+=`<p class="res-line"><b class="gain">+${fmtM(m)}</b> · Tagesstein zahlt ×${DAILY_X}, dazu Serien-Bonus</p>`;
@@ -559,7 +583,7 @@ function renderVitrine(){const today=dayKey(),keys=Object.keys(save.days).sort()
   let start=keys[0]&&keys[0]<today?keys[0]:today;if(dayNo(today)-dayNo(start)>55)start=addDays(today,-55);
   let h='',count=0;
   for(let k=start;k<=today;k=addDays(k,1)){const d=save.days[k];count++;
-    if(d)h+=`<div class="slot">${gemSVG(d.p,TYPES[d.t]||TYPES[0])}<b>${fmt(d.s)}</b><span>Tag ${dayNo(k)}</span></div>`;
+    if(d)h+=`<div class="slot r${tier(TYPES[d.t]||TYPES[0])}" title="${TIER[tier(TYPES[d.t]||TYPES[0])]}">${gemSVG(d.p,TYPES[d.t]||TYPES[0])}<b>${fmt(d.s)}</b><span>Tag ${dayNo(k)}</span></div>`;
     else if(k===today)h+=`<div class="slot today"><span class="q">?</span><span>heute offen</span></div>`;
     else h+=`<div class="slot missed"><span>Tag ${dayNo(k)}</span><span>verpasst</span></div>`}
   const total=Math.max(14,Math.ceil(count/7)*7);
@@ -590,9 +614,14 @@ function draw(R){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);if(!R)
   const sx=shake?(Math.random()-.5)*shake*S:0,sy=shake?(Math.random()-.5)*shake*S:0;
   ctx.translate(V.cx+sx,V.cy+sy);ctx.scale(S,S);ctx.lineWidth=1.3/S;ctx.lineJoin='round';
   const trr=tier(t);
-  if(trr>=2&&!reduce){ctx.save();ctx.rotate(R.t*.25);const n=trr===3?14:10,w=TAU/n*.28,g=ctx.createRadialGradient(0,0,.15,0,0,1.9);
-    g.addColorStop(0,`hsl(${t.h} ${t.s}% 76% / ${trr===3?.32:.2})`);g.addColorStop(1,`hsl(${t.h} ${t.s}% 76% / 0)`);ctx.fillStyle=g;
-    for(let i=0;i<n;i++){const a=i/n*TAU;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,1.9,a-w,a+w);ctx.closePath();ctx.fill()}ctx.restore()}
+  if(trr>=3&&!reduce){const L=trr===4,hh=L?46:t.h,ss=L?95:t.s,ray=(rot,n,al,len)=>{ctx.save();ctx.rotate(rot);const w=TAU/n*.28,g=ctx.createRadialGradient(0,0,.15,0,0,len);
+      g.addColorStop(0,`hsl(${hh} ${ss}% 76% / ${al})`);g.addColorStop(1,`hsl(${hh} ${ss}% 76% / 0)`);ctx.fillStyle=g;
+      for(let i=0;i<n;i++){const a=i/n*TAU;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,len,a-w,a+w);ctx.closePath();ctx.fill()}ctx.restore()};
+    ray(R.t*.25,L?16:10,L?.36:.15,L?2.3:1.7);
+    if(L){ray(-R.t*.17,9,.2,2.7);ctx.strokeStyle='rgba(255,236,170,.95)';ctx.lineWidth=.014;ctx.lineCap='round';
+      for(let i=0;i<10;i++){const a=R.t*.9+i/10*TAU,rr=1.18+.08*Math.sin(R.t*2+i),s=.035+.02*Math.sin(R.t*5+i*2),x=Math.cos(a)*rr,y=Math.sin(a)*rr;
+        ctx.beginPath();ctx.moveTo(x-s,y);ctx.lineTo(x+s,y);ctx.moveTo(x,y-s);ctx.lineTo(x,y+s);ctx.stroke()}
+      ctx.lineWidth=1.3/S}}
   for(const d of R.debris){ctx.save();ctx.globalAlpha=Math.max(0,1-d.t/1.5);ctx.translate(d.x,d.y);ctx.rotate(d.a);drawRock(d.rock,d.a);if(d.gem)drawGem(d.gem,t,d.a,0);ctx.restore()}
   ctx.save();ctx.rotate(R.rot);
   if(R.done){const gs=1+.55*e,c=centroid(R.gem);ctx.scale(gs,gs);ctx.translate(-c[0]*e,-c[1]*e);ctx.lineWidth=1.3/S/gs}
