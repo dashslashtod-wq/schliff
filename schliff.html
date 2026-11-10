@@ -184,14 +184,15 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
       <button class="collect" id="collect" hidden></button>
       <span class="money" id="money" title="Dein Geld"></span>
       <button class="ghost-btn" id="sndBtn" aria-pressed="true">Ton an</button>
+      <button class="ghost-btn" id="langBtn" aria-label="Switch to English" data-en="DE">EN</button>
     </div>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Bereich">
-    <button role="tab" id="tab-daily" data-view="daily" aria-selected="true">Tagesstein</button>
+    <button role="tab" id="tab-daily" data-view="daily" aria-selected="true" data-en="Daily">Tagesstein</button>
     <button role="tab" id="tab-mine" data-view="mine" aria-selected="false">Mine</button>
-    <button role="tab" id="tab-shop" data-view="shop" aria-selected="false">Laden</button>
-    <button role="tab" id="tab-vitrine" data-view="vitrine" aria-selected="false">Vitrine</button>
+    <button role="tab" id="tab-shop" data-view="shop" aria-selected="false" data-en="Shop">Laden</button>
+    <button role="tab" id="tab-vitrine" data-view="vitrine" aria-selected="false" data-en="Showcase">Vitrine</button>
   </nav>
 
   <section class="view" id="playView">
@@ -201,46 +202,46 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
       <p class="hint" id="hint"></p>
       <div class="panel" id="panel" hidden></div>
       <div class="intro" id="back" hidden>
-        <h2>Willkommen zurück.</h2>
+        <h2 data-en="Welcome back.">Willkommen zurück.</h2>
         <p id="backTxt"></p>
-        <div class="res-btns"><button class="btn primary" id="backBtn">Einsammeln</button></div>
+        <div class="res-btns"><button class="btn primary" id="backBtn" data-en="Collect">Einsammeln</button></div>
       </div>
       <div class="intro" id="intro" hidden>
-        <h2>Leg das Juwel frei.</h2>
+        <h2 data-en="Free the gem.">Leg das Juwel frei.</h2>
         <ol>
-          <li><b>Wisch quer über den Stein.</b> Was abfällt, ist weg.</li>
-          <li><b>Schneide so knapp wie möglich</b> am Juwel entlang. Je weniger Gestein bleibt, desto reiner.</li>
-          <li><b>Triff das Juwel nicht.</b> Jeder Riss kostet 4 Punkte und Karat.</li>
+          <li data-en="<b>Swipe across the stone.</b> Whatever falls off is gone."><b>Wisch quer über den Stein.</b> Was abfällt, ist weg.</li>
+          <li data-en="<b>Cut as close as you can</b> along the gem. The less rock is left, the purer it gets."><b>Schneide so knapp wie möglich</b> am Juwel entlang. Je weniger Gestein bleibt, desto reiner.</li>
+          <li data-en="<b>Don't hit the gem.</b> Every crack costs 4 points and carats."><b>Triff das Juwel nicht.</b> Jeder Riss kostet 4 Punkte und Karat.</li>
         </ol>
         <div class="res-btns">
-          <button class="btn primary" id="introDaily">Tagesstein schleifen</button>
-          <button class="btn" id="introMine">Erst in der Mine üben</button>
+          <button class="btn primary" id="introDaily" data-en="Cut the daily stone">Tagesstein schleifen</button>
+          <button class="btn" id="introMine" data-en="Practice in the mine first">Erst in der Mine üben</button>
         </div>
       </div>
     </div>
     <div class="tray">
       <div class="cuts" id="cuts"></div>
-      <div class="purity"><span id="purity">0,0</span><small>% Reinheit</small></div>
-      <button id="doneBtn" disabled>Fertig</button>
+      <div class="purity"><span id="purity">0,0</span><small data-en="% purity">% Reinheit</small></div>
+      <button id="doneBtn" disabled data-en="Done">Fertig</button>
     </div>
   </section>
 
   <section class="view" id="shopView" hidden>
-    <h2>Werkstatt</h2>
+    <h2 data-en="Workshop">Werkstatt</h2>
     <p class="note" id="idleInfo"></p>
     <ul class="shop-list" id="idle"></ul>
-    <h2>Schächte</h2>
+    <h2 data-en="Shafts">Schächte</h2>
     <ul class="shop-list" id="shafts"></ul>
-    <h2>Hilfsmittel</h2>
+    <h2 data-en="Tools">Hilfsmittel</h2>
     <ul class="shop-list" id="tools"></ul>
-    <p class="note">Hilfsmittel wirken nur in der Mine. Der Tagesstein bleibt für alle gleich, bringt aber das Zehnfache und wächst mit deinem tiefsten Schacht und deiner Serie.</p>
+    <p class="note" data-en="Tools only work in the mine. The daily stone is the same for everyone, but it pays ten times as much and grows with your deepest shaft and your streak.">Hilfsmittel wirken nur in der Mine. Der Tagesstein bleibt für alle gleich, bringt aber das Zehnfache und wächst mit deinem tiefsten Schacht und deiner Serie.</p>
   </section>
 
   <section class="view" id="vitrineView" hidden>
     <dl class="stats" id="stats"></dl>
-    <h2>Deine Steine</h2>
+    <h2 data-en="Your stones">Deine Steine</h2>
     <div class="shelf" id="shelf"></div>
-    <p class="note">Jeden Tag gibt es einen neuen Stein, für alle denselben. Du hast einen Versuch. Verpasste Tage bleiben leer.</p>
+    <p class="note" data-en="Every day there is one new stone, the same for everyone. You get one try. Missed days stay empty.">Jeden Tag gibt es einen neuen Stein, für alle denselben. Du hast einen Versuch. Verpasste Tage bleiben leer.</p>
   </section>
 </div>
 <div id="fx" aria-hidden="true"></div>
@@ -252,8 +253,14 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 'use strict';
 const TAU=Math.PI*2, $=id=>document.getElementById(id);
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const fmt=v=>v.toFixed(1).replace('.',',');
-const fmtInt=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+/* ---------- Sprache: gespeicherte Wahl, sonst Browsersprache (Deutsch nur bei de-*) ---------- */
+const LANG=(()=>{try{const l=JSON.parse(localStorage.getItem('schliff.v1')||'{}').lang;if(l==='de'||l==='en')return l}catch(e){}return/^de\b/i.test(navigator.language||'')?'de':'en'})();
+const EN=LANG==='en',T=(de,en)=>EN?en:de;
+try{document.documentElement.lang=LANG}catch(e){}
+if(EN){for(const e of document.querySelectorAll('[data-en]'))e.innerHTML=e.dataset.en;
+  $('cv').setAttribute('aria-label','Stone on the workbench. Swipe across the stone to cut.');$('money').title='Your money'}
+const fmt=v=>EN?v.toFixed(1):v.toFixed(1).replace('.',',');
+const fmtInt=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,EN?',':'.');
 
 /* ---------- Speicher ---------- */
 const KEY='schliff.v1';
@@ -356,6 +363,18 @@ const rockColor=sh=>`hsl(${26+sh*10} ${14+sh*7}% ${25+sh*30}%)`;
 const TIER=['Gewöhnlich','Ungewöhnlich','Selten','Episch','Legendär'],TIERSUB=['','','','Epischer Fund','Legendärer Fund'];
 const tier=t=>t.v>=16?4:t.v>=9?3:t.v>=4?2:t.v>=2?1:0;
 
+/* ---------- Englische Namen ---------- */
+if(EN){['Rock Crystal','Amethyst','Citrine','Emerald','Sapphire','Ruby','Opal','Diamond'].forEach((n,i)=>{TYPES[i].n=n});
+  [['Open Pit','Easy stones, small prices.'],['Shaft 2','Prices ×3. More edges, fewer cuts.'],['Shaft 3','Prices ×9. More rare stones.'],['Shaft 4','Prices ×27. Many edges, few cuts.'],['Deep Level','Prices ×80. Steady hands only.']]
+    .forEach((a,i)=>{SHAFTS[i].n=a[0];SHAFTS[i].d=a[1]});
+  const tl={lupe:['Loupe','Shows how pure the stone will be before you release the cut.'],pol:['Polisher','Each level: 15% higher sale price.'],
+    guide:['Guide Line','The cut snaps to the gem edge. Higher levels snap sooner and closer.'],cut:['Extra Cut','Each level: one more cut per stone.'],
+    ins:['Insurance','The first crack per stone costs no points.'],work:['Apprentices','They cut and sell stones even while you are away. Each level earns more per hour.'],
+    store:['Storage','When storage is full, the apprentices stop. Each level holds more hours.']};
+  for(const t of [...IDLE,...TOOLS])if(tl[t.k]){t.n=tl[t.k][0];t.d=tl[t.k][1]}
+  ['flawless','near flawless','very fine','fine','included'].forEach((n,i)=>{GRADES[i][2]=n});
+  ['Common','Uncommon','Rare','Epic','Legendary'].forEach((n,i)=>{TIER[i]=n});TIERSUB[3]='Epic find';TIERSUB[4]='Legendary find'}
+
 /* ---------- Runde ---------- */
 function newRound(mode,stone,cuts,omega){const R={mode,stone,rock:stone.rock,gem:stone.gem,g0:area(stone.gem),cutsMax:cuts,cutsLeft:cuts,cracks:0,crackLines:[],
     rot:0,omega,done:false,fin:0,panel:false,debris:[],hist:[],t:0,ins:mode==='mine'?save.up.ins:0};
@@ -439,7 +458,7 @@ function confetti(n){if(reduce)return;const w=innerWidth,h=innerHeight;
     fly(c,[{transform:`translate(${x}px,-20px) rotate(0deg)`,opacity:1},{transform:`translate(${x+dx}px,${h+20}px) rotate(${r}deg)`,opacity:.9}],
       {duration:1400+Math.random()*1300,delay:Math.random()*350,easing:'cubic-bezier(.3,.2,.6,1)',fill:'both'})}}
 function checkMiles(){let hit=0;while(save.mile<MILES.length&&save.money>=MILES[save.mile]){hit=MILES[save.mile];save.mile++}
-  if(hit){persist();banner(fmtM(hit),'Meilenstein erreicht','gold');confetti(70);flash('var(--brass)');sfxJackpot()}}
+  if(hit){persist();banner(fmtM(hit),T('Meilenstein erreicht','Milestone reached'),'gold');confetti(70);flash('var(--brass)');sfxJackpot()}}
 
 /* ---------- Zustand ---------- */
 const cv=$('cv'),ctx=cv.getContext('2d'),bench=$('bench'),panel=$('panel'),hint=$('hint');
@@ -467,9 +486,9 @@ function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round
     const jack=R.final>=50&&(ratio>=20||tr===4||(tr===3&&gi<=1)||(daily&&gi<=1)),big=jack||ratio>=5||gi===0||daily;
     moneyHold=Date.now()+1500;
     setTimeout(()=>{if(R===cur()){coins(jack?40:big?20:7,gemScreen());sfxCoins(jack?14:big?9:4)}
-      if(jack){banner('Volltreffer!','+'+fmtM(R.pay),'gold');flash('var(--brass)');confetti(90);sfxJackpot()}
-      else if(gi===0)banner('Lupenrein!','+'+fmtM(R.pay),'gold');
-      else if(big&&R.final>=50)banner('+'+fmtM(R.pay),daily?'Tagesstein':'Guter Verkauf','gold')},900);
+      if(jack){banner(T('Volltreffer!','Jackpot!'),'+'+fmtM(R.pay),'gold');flash('var(--brass)');confetti(90);sfxJackpot()}
+      else if(gi===0)banner(T('Lupenrein!','Flawless!'),'+'+fmtM(R.pay),'gold');
+      else if(big&&R.final>=50)banner('+'+fmtM(R.pay),daily?T('Tagesstein','Daily stone'):T('Guter Verkauf','Nice sale'),'gold')},900);
     setTimeout(()=>{moneyHold=0;showMoney();checkMiles()},1550)}
   if(!quiet){sfxWin(gi);crumble(R);buzz(gi<2?[20,40,20,40,60]:25)}
   setTimeout(()=>{R.panel=true;if(R===cur())showPanel(R)},quiet?0:900);
@@ -510,13 +529,13 @@ cv.addEventListener('pointercancel',()=>{drag=null});
 cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;d.b=pos(e);const R=cur();if(!R||R.done)return;
   if(Math.hypot(d.b[0]-d.a[0],d.b[1]-d.a[1])<26)return;
   const rot=R.rot,la=toLocal(d.a,rot),lb=toLocal(d.b,rot),sn=snap(R,la,lb),s0=score(R),res=sn?applyCut(R,sn[0],sn[1]):applyCut(R,la,lb);
-  if(!res){sfxMiss();hintWarn=2.2;hint.textContent='Daneben. Der Schnitt muss durch den Stein gehen.';hint.className='hint warn';return}
+  if(!res){sfxMiss();hintWarn=2.2;hint.textContent=T('Daneben. Der Schnitt muss durch den Stein gehen.','Missed. The cut has to go through the stone.');hint.className='hint warn';return}
   save.n++;if(R.mode==='daily')save.cur={day:R.key,cuts:R.hist};persist();
   cutFx(R,res,rot);
   if(res.chord.length>=2){const p=res.chord[0],q=res.chord[res.chord.length-1],mid=toWorld([(p[0]+q[0])/2,(p[1]+q[1])/2],rot),gain=score(R)-s0;
-    if(res.hit&&!res.saved)floatTxt(mid,'Riss −4','#ff7a6b');
-    else if(gain>=.05)floatTxt(mid,(gain>=12?'Sauber! ':'')+'+'+fmt(gain)+' %',gain>=12?'#6fe3b4':'#ffe6a3')}
-  if(res.hit){sfxCrack();buzz([30,40,60]);hintWarn=2;hint.textContent=res.saved?'Riss im Juwel. Die Versicherung zahlt, kein Punktabzug.':'Riss im Juwel. 4 Punkte Abzug.';hint.className='hint warn'}
+    if(res.hit&&!res.saved)floatTxt(mid,T('Riss −4','Crack −4'),'#ff7a6b');
+    else if(gain>=.05)floatTxt(mid,(gain>=12?T('Sauber! ','Clean! '):'')+'+'+fmt(gain)+T(' %','%'),gain>=12?'#6fe3b4':'#ffe6a3')}
+  if(res.hit){sfxCrack();buzz([30,40,60]);hintWarn=2;hint.textContent=res.saved?T('Riss im Juwel. Die Versicherung zahlt, kein Punktabzug.','You cracked the gem. Insurance pays, no points lost.'):T('Riss im Juwel. 4 Punkte Abzug.','You cracked the gem. 4 points lost.');hint.className='hint warn'}
   else{sfxCut(R.cutsMax-R.cutsLeft-1);buzz(12)}
   refreshHud();
   if(R.cutsLeft<=0)setTimeout(()=>finish(R),480)});
@@ -525,37 +544,41 @@ $('doneBtn').addEventListener('click',()=>{const R=cur();if(R&&!R.done&&R.hist.l
 /* ---------- HUD ---------- */
 function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t),rare=`<span class="rare t${tr}">${TIER[tr]}</span>`;
   bench.classList.toggle('epic',tr===3&&!R.done);bench.classList.toggle('legend',tr===4&&!R.done);
-  $('stoneInfo').innerHTML=(R.mode==='daily'?`Tag ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · Stufe ${mine.level}`)+` · <b>${t.n}</b> · ${fmt(R.stone.ct)} ct`+rare;
-  if(R.mode==='daily'){const s=streak();$('runInfo').textContent=R.done?(s?`Serie ${s} ${s===1?'Tag':'Tage'}`:''):`Ein Versuch · zahlt ×${DAILY_X}`}
-  else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` Schicht ${fmtM(mine.score)}`}
+  $('stoneInfo').innerHTML=(R.mode==='daily'?`${T('Tag','Day')} ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · ${T('Stufe','Level')} ${mine.level}`)+` · <b>${t.n}</b> · ${fmt(R.stone.ct)} ct`+rare;
+  if(R.mode==='daily'){const s=streak();$('runInfo').textContent=R.done?(s?T(`Serie ${s} ${s===1?'Tag':'Tage'}`,`Streak ${s} ${s===1?'day':'days'}`):''):T(`Ein Versuch · zahlt ×${DAILY_X}`,`One try · pays ×${DAILY_X}`)}
+  else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` ${T('Schicht','Shift')} ${fmtM(mine.score)}`}
   showMoney();
   let c='';for(let i=0;i<R.cutsMax;i++)c+=`<i class="${i<R.cutsMax-R.cutsLeft?'used':''}"></i>`;
-  $('cuts').innerHTML=c+`<span>${R.cutsLeft} ${R.cutsLeft===1?'Schnitt':'Schnitte'}</span>`;
+  $('cuts').innerHTML=c+`<span>${R.cutsLeft} ${R.cutsLeft===1?T('Schnitt','cut'):T('Schnitte','cuts')}</span>`;
   $('doneBtn').disabled=R.done||!R.hist.length;
-  const s=streak();$('streak').textContent=s?`Serie ${s}`:'';
-  if(hintWarn<=0){hint.className='hint';hint.textContent=R.done?'':!R.hist.length?(R.omega?'Der Stein dreht sich. Wisch im richtigen Moment.':'Wisch quer über den Stein, um ihn zu schneiden.'):''}}
+  const s=streak();$('streak').textContent=s?`${T('Serie','Streak')} ${s}`:'';
+  if(hintWarn<=0){hint.className='hint';hint.textContent=R.done||R.hist.length?'':T('Wisch quer über den Stein, um ihn zu schneiden.','Swipe across the stone to cut it.')}}
 
 function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(d.s)],s=streak(),full=Math.round(d.s/20);
-  return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${'◆'.repeat(full)}${'◇'.repeat(5-full)} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+'\nhttps://dashslashtod-wq.github.io/schliff/'}
+  const bar='◆'.repeat(full)+'◇'.repeat(5-full),url='\nhttps://dashslashtod-wq.github.io/schliff/';
+  if(EN)return`Schliff · Day ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)}% · ${g[1]}\n${d.u} ${d.u===1?'cut':'cuts'} · ${d.c?d.c+(d.c===1?' crack':' cracks'):'no cracks'}`+(s>1?`\nStreak: ${s} days`:'')+url;
+  return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+url}
 
 function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cutsMax-R.cutsLeft;
-  const cracks=R.cracks?`<span class="bad">${R.cracks} ${R.cracks===1?'Riss':'Risse'}</span>`:'kein Riss';
-  let h=`<div class="res-top"><div class="res-num"><span id="resNum">${reduce?fmt(R.final):'0,0'}</span><small>%</small></div><div class="stamp">${g[1]}<small>${g[2]}</small></div></div>`;
-  h+=`<p class="res-line"><b>${t.n}</b><span class="rare t${tier(t)}">${TIER[tier(t)]}</span> · ${fmt(R.stone.ct)} ct · ${used} ${used===1?'Schnitt':'Schnitte'} · ${cracks}</p>`;
+  const cracks=R.cracks?`<span class="bad">${R.cracks} ${R.cracks===1?T('Riss','crack'):T('Risse','cracks')}</span>`:T('kein Riss','no cracks');
+  let h=`<div class="res-top"><div class="res-num"><span id="resNum">${fmt(reduce?R.final:0)}</span><small>%</small></div><div class="stamp">${g[1]}<small>${g[2]}</small></div></div>`;
+  h+=`<p class="res-line"><b>${t.n}</b><span class="rare t${tier(t)}">${TIER[tier(t)]}</span> · ${fmt(R.stone.ct)} ct · ${used} ${used===1?T('Schnitt','cut'):T('Schnitte','cuts')} · ${cracks}</p>`;
   if(R.mode==='daily'){
     const m=R.pay||(save.days[R.key]&&save.days[R.key].m);
-    if(m)h+=`<p class="res-line"><b class="gain">+${fmtM(m)}</b> · Tagesstein zahlt ×${DAILY_X}, dazu Serien-Bonus</p>`;
-    h+=`<p class="res-line">Nächster Stein in <span id="cd">${countdown()}</span></p>`;
-    h+=`<div class="res-btns"><button class="btn primary" id="shareBtn">Ergebnis kopieren</button><button class="btn" id="toMine">Weiter in der Mine</button></div><textarea id="shareTxt" hidden readonly aria-label="Ergebnis zum Kopieren"></textarea>`;
+    if(m)h+=`<p class="res-line"><b class="gain">+${fmtM(m)}</b> · ${T(`Tagesstein zahlt ×${DAILY_X}, dazu Serien-Bonus`,`Daily stone pays ×${DAILY_X}, plus streak bonus`)}</p>`;
+    h+=`<p class="res-line">${T('Nächster Stein in','Next stone in')} <span id="cd">${countdown()}</span></p>`;
+    h+=`<div class="res-btns"><button class="btn primary" id="shareBtn">${T('Ergebnis kopieren','Copy result')}</button><button class="btn" id="toMine">${T('Weiter in der Mine','Keep going in the mine')}</button></div><textarea id="shareTxt" hidden readonly aria-label="${T('Ergebnis zum Kopieren','Result to copy')}"></textarea>`;
   }else if(mine.over){
-    h+=`<p class="res-line"><b class="gain">+${fmtM(R.pay)}</b> · <span class="bad">Schicht vorbei.</span> <b>${fmtM(mine.score)}</b> in ${mine.level} ${mine.level===1?'Stein':'Steinen'}. ${mine.record?'Neuer Rekord.':'Rekord: '+fmtM(save.best)+'.'}</p>`;
-    h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">Neue Schicht</button><button class="btn" id="toShop">Zum Laden</button></div>`;
+    h+=`<p class="res-line"><b class="gain">+${fmtM(R.pay)}</b> · <span class="bad">${T('Schicht vorbei.','Shift over.')}</span> `
+      +T(`<b>${fmtM(mine.score)}</b> in ${mine.level} ${mine.level===1?'Stein':'Steinen'}. ${mine.record?'Neuer Rekord.':'Rekord: '+fmtM(save.best)+'.'}`,
+         `<b>${fmtM(mine.score)}</b> from ${mine.level} ${mine.level===1?'stone':'stones'}. ${mine.record?'New record.':'Record: '+fmtM(save.best)+'.'}`)+'</p>';
+    h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">${T('Neue Schicht','New shift')}</button><button class="btn" id="toShop">${T('Zum Laden','To the shop')}</button></div>`;
   }else{
-    h+=`<p class="res-line">Verkauft für <b class="gain">+${fmtM(R.pay)}</b>${R.lost?' · <span class="bad">unter 50 %, ein Leben weg</span>':''}</p>`;
-    h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">Nächster Stein</button></div>`;
+    h+=`<p class="res-line">${T('Verkauft für','Sold for')} <b class="gain">+${fmtM(R.pay)}</b>${R.lost?` · <span class="bad">${T('unter 50 %, ein Leben weg','below 50%, one life lost')}</span>`:''}</p>`;
+    h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">${T('Nächster Stein','Next stone')}</button></div>`;
   }
   panel.innerHTML=h;panel.hidden=false;R.cnt=reduce?1:0;
-  const sb=$('shareBtn');if(sb)sb.addEventListener('click',()=>{const txt=shareText(R),ok=()=>{sb.textContent='Kopiert';setTimeout(()=>{sb.textContent='Ergebnis kopieren'},1800)},
+  const sb=$('shareBtn');if(sb)sb.addEventListener('click',()=>{const txt=shareText(R),ok=()=>{sb.textContent=T('Kopiert','Copied');setTimeout(()=>{sb.textContent=T('Ergebnis kopieren','Copy result')},1800)},
       fb=()=>{const ta=$('shareTxt');ta.value=txt;ta.hidden=false;ta.focus();ta.select()};
     try{navigator.clipboard.writeText(txt).then(ok,fb)}catch(e){fb()}});
   const tm=$('toMine');if(tm)tm.addEventListener('click',()=>setView('mine'));
@@ -578,16 +601,17 @@ function gemSVG(p,t){const c=centroid(p);let m=0;for(const v of p)m=Math.max(m,M
   return s+'</svg>'}
 function renderVitrine(){const today=dayKey(),keys=Object.keys(save.days).sort(),n=keys.length;
   let best=0;for(const k of keys)best=Math.max(best,save.days[k].s);
-  $('stats').innerHTML=[['Serie',streak()+(streak()===1?' Tag':' Tage')],['Steine',n],['Bester Schliff',n?fmt(best)+' %':'–'],['Beste Schicht',save.best?fmtM(save.best):'–']]
+  const DAY=T('Tag','Day');
+  $('stats').innerHTML=[[T('Serie','Streak'),streak()+(streak()===1?T(' Tag',' day'):T(' Tage',' days'))],[T('Steine','Stones'),n],[T('Bester Schliff','Best cut'),n?fmt(best)+T(' %','%'):'–'],[T('Beste Schicht','Best shift'),save.best?fmtM(save.best):'–']]
     .map(a=>`<div><dt>${a[0]}</dt><dd>${a[1]}</dd></div>`).join('');
   let start=keys[0]&&keys[0]<today?keys[0]:today;if(dayNo(today)-dayNo(start)>55)start=addDays(today,-55);
   let h='',count=0;
   for(let k=start;k<=today;k=addDays(k,1)){const d=save.days[k];count++;
-    if(d)h+=`<div class="slot r${tier(TYPES[d.t]||TYPES[0])}" title="${TIER[tier(TYPES[d.t]||TYPES[0])]}">${gemSVG(d.p,TYPES[d.t]||TYPES[0])}<b>${fmt(d.s)}</b><span>Tag ${dayNo(k)}</span></div>`;
-    else if(k===today)h+=`<div class="slot today"><span class="q">?</span><span>heute offen</span></div>`;
-    else h+=`<div class="slot missed"><span>Tag ${dayNo(k)}</span><span>verpasst</span></div>`}
+    if(d)h+=`<div class="slot r${tier(TYPES[d.t]||TYPES[0])}" title="${TIER[tier(TYPES[d.t]||TYPES[0])]}">${gemSVG(d.p,TYPES[d.t]||TYPES[0])}<b>${fmt(d.s)}</b><span>${DAY} ${dayNo(k)}</span></div>`;
+    else if(k===today)h+=`<div class="slot today"><span class="q">?</span><span>${T('heute offen','open today')}</span></div>`;
+    else h+=`<div class="slot missed"><span>${DAY} ${dayNo(k)}</span><span>${T('verpasst','missed')}</span></div>`}
   const total=Math.max(14,Math.ceil(count/7)*7);
-  for(let i=count,k=addDays(today,1);i<total;i++,k=addDays(k,1))h+=`<div class="slot future"><span class="q">?</span><span>Tag ${dayNo(k)}</span></div>`;
+  for(let i=count,k=addDays(today,1);i<total;i++,k=addDays(k,1))h+=`<div class="slot future"><span class="q">?</span><span>${DAY} ${dayNo(k)}</span></div>`;
   $('shelf').innerHTML=h}
 
 /* ---------- Zeichnen ---------- */
@@ -694,19 +718,20 @@ for(const b of document.querySelectorAll('.tabs button'))b.addEventListener('cli
 function sfxBuy(){const c=audio();if(!c)return;const t=c.currentTime;tone(c,'triangle',880,t,.004,.12,.18);tone(c,'triangle',1318.5,t+.07,.004,.25,.18)}
 function renderShop(){showMoney();
   $('shafts').innerHTML=SHAFTS.map((s,i)=>{const own=i<=save.shaft,next=i===save.shaft+1;
-    const btn=own?`<button class="buy${i===save.sel?' on':''}" data-shaft="${i}" ${i===save.sel?'disabled':''}>${i===save.sel?'Aktiv':'Einfahren'}</button>`
+    const btn=own?`<button class="buy${i===save.sel?' on':''}" data-shaft="${i}" ${i===save.sel?'disabled':''}>${i===save.sel?T('Aktiv','Active'):T('Einfahren','Enter')}</button>`
       :`<button class="buy" data-unlock="${i}" ${next&&save.money>=s.cost?'':'disabled'}>${fmtM(s.cost)}</button>`;
-    return`<li><div class="txt"><div class="nm">${s.n}</div><div class="ds">${own||next?s.d:'Erst den Schacht davor freischalten.'}</div></div>${btn}</li>`}).join('');
+    return`<li><div class="txt"><div class="nm">${s.n}</div><div class="ds">${own||next?s.d:T('Erst den Schacht davor freischalten.','Unlock the shaft before this one first.')}</div></div>${btn}</li>`}).join('');
   const row=t=>{const lv=save.up[t.k],max=t.costs.length,c=t.costs[lv];
-    const btn=lv>=max?`<button class="buy on" disabled>Maximal</button>`:`<button class="buy" data-tool="${t.k}" ${save.money>=c?'':'disabled'}>${fmtM(c)}</button>`;
-    return`<li><div class="txt"><div class="nm">${t.n}${max>1||lv?`<span class="lv">Stufe ${lv}/${max}</span>`:''}</div><div class="ds">${t.d}</div></div>${btn}</li>`};
+    const btn=lv>=max?`<button class="buy on" disabled>${T('Maximal','Maxed')}</button>`:`<button class="buy" data-tool="${t.k}" ${save.money>=c?'':'disabled'}>${fmtM(c)}</button>`;
+    return`<li><div class="txt"><div class="nm">${t.n}${max>1||lv?`<span class="lv">${T('Stufe','Level')} ${lv}/${max}</span>`:''}</div><div class="ds">${t.d}</div></div>${btn}</li>`};
   $('tools').innerHTML=TOOLS.map(row).join('');$('idle').innerHTML=IDLE.map(row).join('');
   const r=idleRate();
-  $('idleInfo').innerHTML=r?`Deine Lehrlinge verdienen <b>${fmtM(r)} pro Stunde</b>, auch wenn das Spiel zu ist. Das Lager fasst ${idleHours()} Stunden, also ${fmtM(idleCap())}. Jeder tiefere Schacht erhöht den Verdienst.`
-    :'Noch keine Lehrlinge. Stell welche ein, dann verdienst du Geld, auch wenn du nicht spielst.';
+  $('idleInfo').innerHTML=r?T(`Deine Lehrlinge verdienen <b>${fmtM(r)} pro Stunde</b>, auch wenn das Spiel zu ist. Das Lager fasst ${idleHours()} Stunden, also ${fmtM(idleCap())}. Jeder tiefere Schacht erhöht den Verdienst.`,
+      `Your apprentices earn <b>${fmtM(r)} per hour</b>, even while the game is closed. Storage holds ${idleHours()} hours, so ${fmtM(idleCap())}. Every deeper shaft raises the income.`)
+    :T('Noch keine Lehrlinge. Stell welche ein, dann verdienst du Geld, auch wenn du nicht spielst.','No apprentices yet. Hire some and you earn money even while you are not playing.');
   updateCollect()}
 function updateCollect(){const b=Math.floor(save.bank),e=$('collect');e.hidden=b<1;if(b>=1){e.textContent=`+${fmtInt(b)} ◈`;e.classList.toggle('full',save.bank>=idleCap()-.5);
-    e.title=save.bank>=idleCap()-.5?'Lager voll. Einsammeln.':'Verdienst der Lehrlinge einsammeln.'}}
+    e.title=save.bank>=idleCap()-.5?T('Lager voll. Einsammeln.','Storage full. Collect.'):T('Verdienst der Lehrlinge einsammeln.','Collect what your apprentices earned.')}}
 function collect(){accrue();const n=Math.floor(save.bank);if(n<1)return;const cr=$('collect').getBoundingClientRect();save.bank-=n;save.money+=n;persist();audio();sfxBuy();
   if(cr.width){coins(12,[cr.left+cr.width/2,cr.top+cr.height/2]);sfxCoins(8)}showMoney();checkMiles();updateCollect();if(view==='shop')renderShop()}
 $('collect').addEventListener('click',collect);
@@ -717,7 +742,9 @@ $('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy'
   else if(b.dataset.unlock){const i=+b.dataset.unlock;if(i!==save.shaft+1||save.money<SHAFTS[i].cost)return;save.money-=SHAFTS[i].cost;save.shaft=i;save.sel=i;rounds.mine=null;sfxBuy()}
   else if(b.dataset.shaft){save.sel=+b.dataset.shaft;rounds.mine=null}
   persist();renderShop()});
-const sndBtn=$('sndBtn');function sndLabel(){sndBtn.textContent=save.snd?'Ton an':'Ton aus';sndBtn.setAttribute('aria-pressed',save.snd?'true':'false')}
+const sndBtn=$('sndBtn');$('langBtn').addEventListener('click',()=>{save.lang=EN?'de':'en';persist();location.reload()});
+if(EN)$('langBtn').setAttribute('aria-label','Auf Deutsch umschalten');
+function sndLabel(){sndBtn.textContent=save.snd?T('Ton an','Sound on'):T('Ton aus','Sound off');sndBtn.setAttribute('aria-pressed',save.snd?'true':'false')}
 sndBtn.addEventListener('click',()=>{save.snd=!save.snd;persist();sndLabel();if(save.snd)sfxMiss()});
 function closeIntro(v){save.seen=true;persist();$('intro').hidden=true;audio();if(v!==view)setView(v);else announce(cur())}
 $('introDaily').addEventListener('click',()=>closeIntro('daily'));
@@ -725,7 +752,8 @@ $('introMine').addEventListener('click',()=>closeIntro('mine'));
 
 {const away=save.idleT?Date.now()-save.idleT:0,before=save.bank;accrue();const n=Math.floor(save.bank);persist();
   if(save.up.work>0&&away>5*6e4&&n>=1&&save.bank>before){const full=save.bank>=idleCap()-.5;
-    $('backTxt').innerHTML=`Du warst ${fmtDur(away)} weg. Im Lager liegen <b>${fmtM(n)}</b> von deinen Lehrlingen.`+(full?' Das Lager ist voll. Ein größeres Lager fasst mehr.':'');
+    $('backTxt').innerHTML=T(`Du warst ${fmtDur(away)} weg. Im Lager liegen <b>${fmtM(n)}</b> von deinen Lehrlingen.`+(full?' Das Lager ist voll. Ein größeres Lager fasst mehr.':''),
+      `You were away for ${fmtDur(away)}. Your apprentices left <b>${fmtM(n)}</b> in storage.`+(full?' Storage is full. A bigger one holds more.':''));
     $('back').hidden=false}}
 buildDaily();sndLabel();updateCollect();
 if(!save.seen&&!rounds.daily.done)$('intro').hidden=false;

@@ -10,14 +10,14 @@ const icon = "data:image/svg+xml," + encodeURIComponent(
   '<polygon points="12,26 32,32 20,52" fill="#d9971a"/></svg>');
 
 const head = `<!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Schliff: Schneide den Stein, leg das Juwel frei. Jeden Tag ein neuer Stein, für alle derselbe.">
+<meta name="description" content="Schliff: slice the rock, free the gem. A new stone every day, the same for everyone. Sell gems, dig deeper, earn while you are away.">
 <meta name="theme-color" content="#1d2440">
 <meta property="og:title" content="Schliff">
-<meta property="og:description" content="Schneide den Stein, leg das Juwel frei. Jeden Tag ein neuer Stein, für alle derselbe.">
+<meta property="og:description" content="Slice the rock, free the gem. A new stone every day, the same for everyone.">
 <meta property="og:type" content="website">
 <link rel="icon" href="${icon}">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
