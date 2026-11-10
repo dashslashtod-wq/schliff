@@ -344,6 +344,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
       <button class="btn" id="musBtn" aria-pressed="true">Musik</button>
       <button class="btn" id="sndBtn" aria-pressed="true">Geräusche</button>
       <button class="btn" id="langBtn" data-en="Auf Deutsch">In English</button>
+      <button class="btn" id="trkBtn"></button>
     </div>
     <h2 data-en="How to play">So geht's</h2>
     <ul class="help">
@@ -384,21 +385,25 @@ if(EN){for(const e of document.querySelectorAll('[data-en]'))e.innerHTML=e.datas
   $('cv').setAttribute('aria-label','Stone on the workbench. Swipe across the stone to cut.');$('money').title='Your money'}
 const fmt=v=>EN?v.toFixed(1):v.toFixed(1).replace('.',',');
 const fmtInt=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,EN?',':'.');
+/* ab einer Million gekürzt: 1,25 Mio. / 1.25M */
+const fmtBig=v=>{v=Math.round(v);const a=Math.abs(v);if(a<1e6)return fmtInt(v);
+  for(const[n,de,en]of[[1e15,' Brd.','Q'],[1e12,' Bio.','T'],[1e9,' Mrd.','B'],[1e6,' Mio.','M']])if(a>=n){const x=v/n,t=Math.abs(x)>=100?x.toFixed(0):Math.abs(x)>=10?x.toFixed(1):x.toFixed(2);return(EN?t:t.replace('.',','))+(EN?en:de)}
+  return fmtInt(v)};
 
 /* ---------- Speicher ---------- */
 const KEY='schliff.v1';
 let save={days:{},best:0,snd:true,mus:true,seen:false,cur:null,n:0,money:0,shaft:0,sel:0,up:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'&&s.days)save=Object.assign(save,s)}catch(e){}
-save.up=Object.assign({lupe:0,guide:0,cut:0,ins:0,pol:0,work:0,store:0},save.up);
+save.up=Object.assign({lupe:0,guide:0,cut:0,ins:0,pol:0,luck:0,clock:0,deal:0,work:0,store:0},save.up);
 /* Zeitlupe gibt es nicht mehr: Kaufpreis zurückzahlen */
 if(save.up.slow){save.money=(+save.money||0)+[0,600,3600,17600][Math.min(3,save.up.slow|0)]}delete save.up.slow;
 save.bank=Math.max(0,+save.bank||0);save.idleT=+save.idleT||0;save.pres=save.pres|0;save.ordN=save.ordN|0;if(!Array.isArray(save.ord))save.ord=[];
 /* Statistik für Erfolge und Sammlung. Alte Spielstände: aus den Tagessteinen nachtragen. */
 {const fresh=!save.st;save.st=Object.assign({stones:0,fl:0,rush:0,earned:0,types:{}},save.st);save.ach=save.ach||{};
   if(fresh)for(const k in save.days){const d=save.days[k],r=save.st.types[d.t]||(save.st.types[d.t]={n:0,b:0});r.n++;r.b=Math.max(r.b,d.s);save.st.stones++;if(d.s>=97)save.st.fl++}}
-const MILES=[1e3,1e4,1e5,1e6,1e7,1e8];
+const MILES=[1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13];
 if(typeof save.mile!=='number')save.mile=MILES.filter(m=>(+save.money||0)>=m).length;
-save.money=+save.money||0;save.shaft=Math.max(0,Math.min(4,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
+save.money=+save.money||0;save.shaft=Math.max(0,Math.min(9,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
 
 /* ---------- Datum ---------- */
@@ -448,19 +453,29 @@ const SHAFTS=[
   {n:'Schacht 2',d:'Preise ×3. Mehr Kanten, weniger Schnitte.',cost:600,mult:3},
   {n:'Schacht 3',d:'Preise ×9. Mehr seltene Steine.',cost:4000,mult:9},
   {n:'Schacht 4',d:'Preise ×27. Viele Kanten, wenig Schnitte.',cost:25000,mult:27},
-  {n:'Tiefensohle',d:'Preise ×80. Nur für ruhige Hände.',cost:150000,mult:80}
+  {n:'Tiefensohle',d:'Preise ×80. Nur für ruhige Hände.',cost:150000,mult:80},
+  {n:'Kristallhöhle',d:'Preise ×250.',cost:1.2e6,mult:250},
+  {n:'Magmakammer',d:'Preise ×800.',cost:1e7,mult:800},
+  {n:'Unterer Mantel',d:'Preise ×2.500.',cost:9e7,mult:2500},
+  {n:'Kernstollen',d:'Preise ×8.000.',cost:8e8,mult:8000},
+  {n:'Sternensplitter',d:'Preise ×25.000. Tiefer geht es nicht.',cost:7e9,mult:25000}
 ];
+/* Preisreihe: Startpreis mal Faktor je Stufe, auf zwei Stellen gerundet */
+const ladder=(base,f,n)=>Array.from({length:n},(_,i)=>{const v=base*Math.pow(f,i),m=Math.pow(10,Math.max(0,Math.floor(Math.log10(v))-1));return Math.round(v/m)*m});
 const TOOLS=[
   {k:'lupe',n:'Lupe',d:'Zeigt vor dem Loslassen, wie rein der Stein nach dem Schnitt ist.',costs:[300]},
-  {k:'pol',n:'Polierer',d:'Jede Stufe: 15 % mehr Verkaufspreis.',costs:[400,1500,6000,25000,100000]},
+  {k:'pol',n:'Polierer',d:'Jede Stufe: 15 % mehr Verkaufspreis.',costs:ladder(400,3.4,20)},
   {k:'guide',n:'Führungslinie',d:'Der Schnitt rastet an der Juwelkante ein. Höhere Stufe: rastet früher und knapper.',costs:[800,5000,30000]},
-  {k:'cut',n:'Extra-Schnitt',d:'Jede Stufe: ein Schnitt mehr pro Stein.',costs:[1500,12000]},
-  {k:'ins',n:'Versicherung',d:'Der erste Riss pro Stein kostet keine Punkte.',costs:[2500]}
+  {k:'cut',n:'Extra-Schnitt',d:'Jede Stufe: ein Schnitt mehr pro Stein.',costs:[1500,12000,400000,2e7]},
+  {k:'ins',n:'Versicherung',d:'Jede Stufe: ein Riss pro Stein mehr, der keine Punkte kostet.',costs:[2500,90000,6e6]},
+  {k:'luck',n:'Glückshand',d:'Jede Stufe: mehr seltene, epische und legendäre Steine in der Mine.',costs:ladder(3000,7,6)},
+  {k:'clock',n:'Stoppuhr',d:'Jede Stufe: 1,5 Sekunden mehr Zeit beim Zeitstein.',costs:ladder(2000,8,5)},
+  {k:'deal',n:'Händler',d:'Jede Stufe: 25 % mehr Lohn für Aufträge und Tagesaufgaben.',costs:ladder(5000,6,8)}
 ];
 /* Werkstatt: verdient auch, wenn nicht gespielt wird */
 const IDLE=[
-  {k:'work',n:'Lehrlinge',d:'Schleifen und verkaufen Steine, auch wenn du nicht spielst. Jede Stufe verdient mehr pro Stunde.',costs:[150,1200,6000,30000,120000,500000,2000000],rate:[0,60,150,350,800,1800,4000,9000]},
-  {k:'store',n:'Lager',d:'Ist das Lager voll, hören die Lehrlinge auf. Jede Stufe fasst mehr Stunden.',costs:[800,5000,30000,200000],hours:[2,4,8,12,24]}
+  {k:'work',n:'Lehrlinge',d:'Schleifen und verkaufen Steine, auch wenn du nicht spielst. Jede Stufe verdient mehr pro Stunde.',costs:ladder(150,4.2,18),rate:[0].concat(ladder(60,2.3,18))},
+  {k:'store',n:'Lager',d:'Ist das Lager voll, hören die Lehrlinge auf. Jede Stufe fasst mehr Stunden.',costs:[800,5000,30000,200000,3e6,5e7],hours:[2,4,8,12,24,36,48]}
 ];
 /* Meisterbrief: jeder gibt dauerhaft +50 % auf Preise, Lehrlinge und Auftragslohn */
 const pm=()=>1+.5*(save.pres||0);
@@ -471,22 +486,22 @@ function accrue(){const now=Date.now();if(!save.idleT||now<save.idleT)save.idleT
   save.bank=Math.min(Math.max(idleCap(),save.bank),save.bank+idleRate()*(now-save.idleT)/3.6e6);save.idleT=now}
 const fmtDur=ms=>{const m=Math.floor(ms/6e4),h=Math.floor(m/60);return h?`${h} h ${m%60} min`:`${m} min`};
 const GBONUS=[2,1.5,1.2,1,1];
-const fmtM=v=>fmtInt(v)+' ◈';
+const fmtM=v=>fmtBig(v)+' ◈';
 function price(stone,s,shaft,pol){return Math.max(1,Math.round(stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*pm()*(pol?1+.15*save.up.pol:1)))}
 const DAILY_X=10;
 const streakBonus=()=>1+Math.min(10,streak())*.1;
 let moneyShown=-1,moneyHold=0,moneyAnim=0;
 function showMoney(){if(Date.now()<moneyHold)return;const e=$('money'),to=save.money;
-  if(moneyShown<0||reduce||to<=moneyShown){moneyAnim++;moneyShown=to;e.innerHTML='<i>◈</i>'+fmtInt(to);return}
+  if(moneyShown<0||reduce||to<=moneyShown){moneyAnim++;moneyShown=to;e.innerHTML='<i>◈</i>'+fmtBig(to);return}
   const from=moneyShown,t0=performance.now(),id=++moneyAnim;moneyShown=to;e.classList.remove('pop');void e.offsetWidth;e.classList.add('pop');
-  setTimeout(()=>{if(id===moneyAnim)e.innerHTML='<i>◈</i>'+fmtInt(to)},800);
-  (function step(now){if(id!==moneyAnim)return;const k=Math.min(1,Math.max(0,(now-t0)/650));e.innerHTML='<i>◈</i>'+fmtInt(from+(to-from)*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(step)})(t0)}
+  setTimeout(()=>{if(id===moneyAnim)e.innerHTML='<i>◈</i>'+fmtBig(to)},800);
+  (function step(now){if(id!==moneyAnim)return;const k=Math.min(1,Math.max(0,(now-t0)/650));e.innerHTML='<i>◈</i>'+fmtBig(from+(to-from)*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(step)})(t0)}
 const WSUM=TYPES.reduce((a,t)=>a+t.w,0);
 const GRADES=[[97,'FL','lupenrein'],[92,'VVS','fast lupenrein'],[85,'VS','sehr fein'],[72,'SI','fein'],[0,'P','Piqué']];
 const gradeIdx=s=>GRADES.findIndex(g=>s>=g[0]);
 /* Sonderformen (nur Mine): round = Rundschliff mit 12 Kanten, needle = lang und schmal, tiny = halb so groß. Schwerer, dafür teurer. */
 const SHAPES={round:{de:'Rundschliff',en:'Round cut',x:1.3},needle:{de:'Nadel',en:'Needle',x:1.25},tiny:{de:'Winzling',en:'Tiny',x:1.5}};
-function makeStone(seed,sides,shaft=0,shape){const r=rng(seed),ex=1/(1+.6*shaft),ws=TYPES.map(t=>Math.pow(t.w,ex)),sum=ws.reduce((a,b)=>a+b,0);
+function makeStone(seed,sides,shaft=0,shape,luck=0){const r=rng(seed),ex=1/(1+.6*Math.min(shaft,4)+.3*luck),ws=TYPES.map(t=>Math.pow(t.w,ex)),sum=ws.reduce((a,b)=>a+b,0);
   let w=r()*sum,ti=0;while(ti<TYPES.length-1&&w>=ws[ti]){w-=ws[ti];ti++}
   const n=shape==='round'?12:sides||5+Math.floor(r()*3),g0=.40+r()*.1,oa=r()*TAU,od=r()*.16,gr=shape==='tiny'?g0*.5:shape==='needle'?g0*1.05:g0;
   const squash=shape==='needle'?.3+r()*.06:shape==='round'?.9+r()*.1:.7+r()*.3;
@@ -501,11 +516,11 @@ const tier=t=>t.v>=16?4:t.v>=9?3:t.v>=4?2:t.v>=2?1:0;
 
 /* ---------- Englische Namen ---------- */
 if(EN){['Rock Crystal','Amethyst','Citrine','Emerald','Sapphire','Ruby','Opal','Diamond','Aquamarine','Tourmaline','Tanzanite','Alexandrite'].forEach((n,i)=>{TYPES[i].n=n});
-  [['Open Pit','Easy stones, small prices.'],['Shaft 2','Prices ×3. More edges, fewer cuts.'],['Shaft 3','Prices ×9. More rare stones.'],['Shaft 4','Prices ×27. Many edges, few cuts.'],['Deep Level','Prices ×80. Steady hands only.']]
+  [['Open Pit','Easy stones, small prices.'],['Shaft 2','Prices ×3. More edges, fewer cuts.'],['Shaft 3','Prices ×9. More rare stones.'],['Shaft 4','Prices ×27. Many edges, few cuts.'],['Deep Level','Prices ×80. Steady hands only.'],['Crystal Cave','Prices ×250.'],['Magma Chamber','Prices ×800.'],['Lower Mantle','Prices ×2,500.'],['Core Tunnel','Prices ×8,000.'],['Star Shard','Prices ×25,000. This is as deep as it gets.']]
     .forEach((a,i)=>{SHAFTS[i].n=a[0];SHAFTS[i].d=a[1]});
   const tl={lupe:['Loupe','Shows how pure the stone will be before you release the cut.'],pol:['Polisher','Each level: 15% higher sale price.'],
     guide:['Guide Line','The cut snaps to the gem edge. Higher levels snap sooner and closer.'],cut:['Extra Cut','Each level: one more cut per stone.'],
-    ins:['Insurance','The first crack per stone costs no points.'],work:['Apprentices','They cut and sell stones even while you are away. Each level earns more per hour.'],
+    ins:['Insurance','Each level: one more crack per stone that costs no points.'],luck:['Lucky Hand','Each level: more rare, epic and legendary stones in the mine.'],clock:['Stopwatch','Each level: 1.5 seconds more on rush stones.'],deal:['Dealer','Each level: 25% more pay for orders and daily tasks.'],work:['Apprentices','They cut and sell stones even while you are away. Each level earns more per hour.'],
     store:['Storage','When storage is full, the apprentices stop. Each level holds more hours.']};
   for(const t of [...IDLE,...TOOLS])if(tl[t.k]){t.n=tl[t.k][0];t.d=tl[t.k][1]}
   ['flawless','near flawless','very fine','fine','included'].forEach((n,i)=>{GRADES[i][2]=n});
@@ -553,53 +568,87 @@ let ac=null;
 function actx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended'&&!document.hidden)ac.resume();return ac}catch(e){return null}}
 function audio(){const c=actx();if(c&&save.mus)musicStart();return save.snd?c:null}
 
-/* ---------- Musik: Funk-Schleife, komplett im Browser erzeugt (8 Takte, 102 BPM, geshuffelte Sechzehntel) ---------- */
-const MUS={on:false,timer:0,step:0,next:0,out:null,keys:null,nz:null};
-const M_STEP=60/102/4,M_SWING=.17,mtof=m=>440*Math.pow(2,(m-69)/12);
-/* Em9 | A13 | Cmaj9 | B7#9 — r: Bass-Grundton, ch: Akkord, b: Bass [Schritt, Halbtöne, Länge], hat: offene Hi-Hat */
-const M_BARS=[
-  {r:40,ch:[55,59,62,66],b:[[0,0,2],[3,0,1],[4,12,1],[6,10,1],[7,12,1],[10,0,2],[14,7,1],[15,10,1]]},
-  {r:45,ch:[55,59,61,66],b:[[0,0,2],[3,12,1],[6,0,1],[7,7,1],[10,10,1],[11,12,1],[14,0,1]],oh:1},
-  {r:36,ch:[55,59,62,64],b:[[0,0,2],[3,0,1],[4,12,1],[6,7,1],[7,9,1],[10,12,2],[14,7,1]]},
-  {r:35,ch:[57,63,66,74],b:[[0,0,2],[3,12,1],[6,0,1],[8,10,1],[10,12,1],[12,0,1],[14,3,1],[15,4,1]],oh:1}
+/* ---------- Musik: drei Stücke, komplett im Browser erzeugt. Die Melodie wird bei jedem Durchgang neu gewürfelt. ---------- */
+const MUS={on:false,timer:0,step:0,bar:0,next:0,song:0,out:null,keys:null,nz:null,pi:4,rh:null};
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+/* Akkord: [Bass-Grundton, Akkordtöne, Septime als Halbtonabstand]. form: je Buchstabe 4 Takte.
+   i = nur Schlagzeug und Bass, A/B = mit Akkorden, a/b = dazu Melodie, x = Ruhepunkt ohne Schlagzeug */
+const SONGS=[
+  {n:'Werkbank-Funk',bpm:102,sw:.17,style:'funk',form:'iAaBbaxaBb',sc:[64,67,69,71,74,76,79,81,83],
+    A:[[40,[55,59,62,66],10],[45,[55,59,61,66],10],[36,[55,59,62,64],11],[35,[57,63,66,74],10]],
+    B:[[45,[55,60,64,67],10],[38,[54,57,60,64],10],[43,[55,59,62,66],11],[35,[57,63,66,69],10]]},
+  {n:'Schacht-Disco',bpm:118,sw:0,style:'disco',form:'iAaabBaxab',sc:[69,72,74,76,79,81,84,86],
+    A:[[45,[57,60,64,67],10],[38,[57,60,65,69],10],[41,[57,60,64,65],11],[40,[56,62,64,68],10]],
+    B:[[41,[57,60,64,65],11],[43,[55,59,62,67],10],[45,[57,60,64,67],10],[40,[56,62,64,68],10]]},
+  {n:'Feierabend',bpm:84,sw:.22,style:'lofi',form:'iAabBxaAb',sc:[69,71,74,76,78,81,83,86],
+    A:[[38,[57,61,64,66],11],[35,[57,62,66,69],10],[43,[54,59,62,66],11],[45,[55,61,64,67],10]],
+    B:[[40,[55,59,62,66],10],[45,[55,61,64,67],10],[42,[57,61,64,69],10],[35,[57,62,66,69],10]]}
 ];
-/* Melodie nur im zweiten Durchgang (Takte 5–8): [Schritt, Ton, Länge] */
-const M_LEAD=[
-  [[0,76,2],[3,79,1],[4,81,2],[7,83,1],[10,81,1],[11,79,2]],
-  [[2,83,1],[4,81,1],[6,79,2],[10,76,3]],
-  [[0,79,2],[3,76,1],[6,74,1],[7,76,3]],
-  [[2,75,1],[4,78,1],[6,81,2],[10,78,1],[12,75,3]]
-];
+/* Bass je Stil: [Schritt, Halbtöne über dem Grundton (S = Septime), Länge in Schritten] */
+const M_BASS={
+  funk:[[[0,0,2],[3,0,1],[4,12,1],[6,'S',1],[7,12,1],[10,0,2],[14,7,1],[15,'S',1]],[[0,0,2],[3,12,1],[6,0,1],[7,7,1],[10,'S',1],[11,12,1],[14,0,1]],
+        [[0,0,2],[3,0,1],[4,12,1],[6,7,1],[7,'S',1],[10,12,2],[14,7,1]],[[0,0,2],[3,12,1],[6,0,1],[8,'S',1],[10,12,1],[12,0,1],[14,7,1],[15,'S',1]]],
+  disco:[[[0,0,1],[2,12,1],[4,0,1],[6,12,1],[8,0,1],[10,12,1],[12,0,1],[14,12,1]],[[0,0,1],[2,12,1],[4,0,1],[6,12,1],[8,0,1],[10,12,1],[12,7,1],[14,'S',1]],
+         [[0,0,1],[2,12,1],[4,7,1],[6,12,1],[8,0,1],[10,12,1],[12,0,1],[14,7,1]],[[0,0,1],[2,12,1],[4,0,1],[6,12,1],[8,0,1],[11,12,1],[12,'S',1],[14,12,1]]],
+  lofi:[[[0,0,6],[10,7,2],[12,0,3]],[[0,0,5],[8,12,2],[12,7,3]],[[0,0,6],[10,'S',2],[12,12,3]],[[0,0,4],[6,7,2],[10,0,2],[14,7,2]]]
+};
+/* Rhythmen für die Melodie: [Schritt, Länge] */
+const M_RH={
+  funk:[[[0,2],[3,1],[4,2],[7,1],[10,1],[11,2]],[[2,1],[4,1],[6,2],[10,3]],[[0,2],[3,1],[6,1],[7,3],[12,2]],[[2,1],[3,1],[6,2],[10,1],[12,3]],[[0,3],[6,1],[8,2],[11,1],[14,2]]],
+  disco:[[[0,2],[4,2],[6,2],[10,2],[12,3]],[[2,2],[6,2],[8,2],[12,4]],[[0,3],[4,1],[6,2],[10,1],[12,2],[14,2]],[[0,4],[6,2],[8,4]]],
+  lofi:[[[0,4],[6,2],[10,4]],[[2,3],[8,2],[12,4]],[[0,6],[10,2],[12,4]],[[4,2],[6,4],[12,3]]]
+};
 function mHit(t,type,f,q,dur,g){const c=ac,s=c.createBufferSource(),fl=c.createBiquadFilter(),gn=c.createGain();s.buffer=MUS.nz;fl.type=type;fl.frequency.value=f;fl.Q.value=q;
   gn.gain.setValueAtTime(g,t);gn.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(fl).connect(gn).connect(MUS.out);s.start(t,Math.random()*.5,dur+.03)}
-function mKick(t){const c=ac,o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.11);
-  g.gain.setValueAtTime(.95,t);g.gain.exponentialRampToValueAtTime(.0001,t+.24);o.connect(g).connect(MUS.out);o.start(t);o.stop(t+.26)}
-function mBass(t,m,dur){const c=ac,o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain();o.type='sawtooth';o.frequency.value=mtof(m);
-  f.type='lowpass';f.Q.value=7;f.frequency.setValueAtTime(1200,t);f.frequency.exponentialRampToValueAtTime(260,t+Math.min(.16,dur));
-  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.4,t+.008);g.gain.setValueAtTime(.4,t+dur*.65);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+function mKick(t,v){const c=ac,o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.11);
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+.24);o.connect(g).connect(MUS.out);o.start(t);o.stop(t+.26)}
+function mBass(t,m,dur,soft){const c=ac,o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain(),v=soft?.34:.4;o.type=soft?'triangle':'sawtooth';o.frequency.value=mtof(m);
+  f.type='lowpass';f.Q.value=soft?1:7;f.frequency.setValueAtTime(soft?700:1200,t);f.frequency.exponentialRampToValueAtTime(soft?400:260,t+Math.min(.16,dur));
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.008);g.gain.setValueAtTime(v,t+dur*.65);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
   o.connect(f).connect(g).connect(MUS.out);o.start(t);o.stop(t+dur+.03)}
 function mKey(t,m,dur,v){const c=ac,g=c.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+dur);g.connect(MUS.keys);
   for(const[k,ty,dt]of[[1,'triangle',-4],[1,'triangle',5],[2,'sine',0]]){const o=c.createOscillator();o.type=ty;o.frequency.value=mtof(m)*k;o.detune.value=dt;o.connect(g);o.start(t);o.stop(t+dur+.03)}}
-function mLead(t,m,dur){const c=ac,o=c.createOscillator(),l=c.createOscillator(),lg=c.createGain(),g=c.createGain();o.type='triangle';o.frequency.value=mtof(m);
-  l.frequency.value=5.5;lg.gain.value=5;l.connect(lg).connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.13,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+function mLead(t,m,dur,soft){const c=ac,o=c.createOscillator(),l=c.createOscillator(),lg=c.createGain(),g=c.createGain();o.type=soft?'sine':'triangle';o.frequency.value=mtof(m);
+  l.frequency.value=5.5;lg.gain.value=soft?3:5;l.connect(lg).connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(soft?.11:.13,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
   o.connect(g).connect(MUS.keys);o.start(t);l.start(t);o.stop(t+dur+.03);l.stop(t+dur+.03)}
-function mStep(n,t){const bar=Math.floor(n/16),s=n%16,B=M_BARS[bar%4];
-  if(s===0||s===7||s===10||(bar%4===3&&s===14))mKick(t);
-  if(s===4||s===12){mHit(t,'bandpass',1900,.8,.13,.42);mHit(t,'highpass',5000,.5,.07,.14)}
-  if(s===15&&bar%2)mHit(t,'bandpass',1900,.8,.06,.12);
-  if(B.oh&&s===14)mHit(t,'highpass',7500,.6,.2,.1);else mHit(t,'highpass',8000,.6,.035,s%2?.045:s%4?.085:.11);
-  for(const b of B.b)if(b[0]===s)mBass(t,B.r+b[1],b[2]*M_STEP*.92);
-  if(s===3||s===6||s===13)for(const m of B.ch)mKey(t,m,.13,.085);
-  if(s===10)for(const m of B.ch)mKey(t,m,.34,.075);
-  if(bar>=4)for(const l of M_LEAD[bar-4])if(l[0]===s)mLead(t,l[1],l[2]*M_STEP*.95)}
+/* Melodie eines Takts würfeln: Rhythmus alle zwei Takte neu, Tonhöhe wandert in kleinen Schritten, betonte Töne rasten auf Akkordtöne */
+function mPhrase(S,C,bar){if(!MUS.rh||bar%2===0){const bank=M_RH[S.style];MUS.rh=bank[Math.floor(Math.random()*bank.length)]}
+  const pcs=C[1].map(m=>m%12),out=[];
+  for(const[s,l]of MUS.rh){MUS.pi=Math.max(0,Math.min(S.sc.length-1,MUS.pi+[-2,-1,-1,0,1,1,2][Math.floor(Math.random()*7)]));
+    if(s%4===0&&!pcs.includes(S.sc[MUS.pi]%12)){for(const d of[1,-1,2,-2]){const j=MUS.pi+d;if(j>=0&&j<S.sc.length&&pcs.includes(S.sc[j]%12)){MUS.pi=j;break}}}
+    out.push([s,S.sc[MUS.pi],l])}
+  return out}
+function mStep(S,st,bar,s,t){const sec=S.form[Math.floor(bar/4)%S.form.length],C=(sec==='B'||sec==='b'?S.B:S.A)[bar%4],x=sec==='x',drums=!x,lead=sec==='a'||sec==='b'||x,keys=sec!=='i';
+  const fill=drums&&bar%4===3,sty=S.style,soft=sty==='lofi';
+  if(s===0)MUS.ph=lead?mPhrase(S,C,bar):null;
+  if(drums){
+    if(sty==='funk'){if(s===0||s===7||s===10||(fill&&s===14))mKick(t,.95);if(s===4||s===12){mHit(t,'bandpass',1900,.8,.13,.42);mHit(t,'highpass',5000,.5,.07,.14)}
+      if(fill&&(s===13||s===15))mHit(t,'bandpass',1900,.8,.07,.2);
+      if(s===14&&bar%2)mHit(t,'highpass',7500,.6,.2,.1);else mHit(t,'highpass',8000,.6,.035,(s%2?.04:s%4?.08:.11)*(.8+Math.random()*.4))}
+    else if(sty==='disco'){if(s%4===0)mKick(t,.95);if(s===4||s===12){mHit(t,'bandpass',1500,.7,.16,.36);mHit(t,'highpass',4500,.5,.09,.16)}
+      if(fill&&s>=12&&s%2===0)mHit(t,'bandpass',2200,.8,.06,.2);
+      if(s%4===2)mHit(t,'highpass',7000,.6,.14,.11);else mHit(t,'highpass',8500,.6,.03,s%2?.035:.06)}
+    else{if(s===0||s===10||(fill&&s===7))mKick(t,.8);if(s===4||s===12)mHit(t,'bandpass',1300,1.2,.1,.24);if(fill&&s===15)mHit(t,'bandpass',1300,1.2,.06,.12);
+      if(s%2===0)mHit(t,'highpass',6500,.6,.04,(s%4?.035:.06)*(.7+Math.random()*.6))}
+    const pat=M_BASS[sty][(bar+(Math.floor(bar/4)%2?1:0))%4];for(const b of pat)if(b[0]===s)mBass(t,C[0]+(b[1]==='S'?C[2]:b[1]),b[2]*st*.92,soft)}
+  if(keys){
+    if(x){if(s===0)for(const m of C[1])mKey(t,m,st*15,.06)}
+    else if(sty==='funk'){if(s===3||s===6||s===13)for(const m of C[1])mKey(t,m,.13,.085);if(s===10)for(const m of C[1])mKey(t,m,.34,.075)}
+    else if(sty==='disco'){if(s%4===2)for(const m of C[1])mKey(t,m,.11,.07);if(s===0&&bar%4===0)for(const m of C[1])mKey(t,m+12,st*10,.03)}
+    else{if(s===0)for(const m of C[1])mKey(t,m,st*9,.07);if(s===10)for(const m of C[1])mKey(t,m,st*4,.045)}}
+  if(MUS.ph)for(const n of MUS.ph)if(n[0]===s)mLead(t,n[1],n[2]*st*.95,soft)}
 function mTick(){if(!ac||!MUS.on||ac.state!=='running')return;if(MUS.next<ac.currentTime)MUS.next=ac.currentTime+.06;
-  while(MUS.next<ac.currentTime+.2){mStep(MUS.step,MUS.next+(MUS.step%2?M_SWING*M_STEP:0));MUS.next+=M_STEP;MUS.step=(MUS.step+1)%128}}
+  while(MUS.next<ac.currentTime+.2){const S=SONGS[MUS.song],st=60/S.bpm/4;mStep(S,st,MUS.bar,MUS.step,MUS.next+(MUS.step%2?S.sw*st:0));MUS.next+=st;
+    if(++MUS.step>=16){MUS.step=0;if(++MUS.bar>=S.form.length*4)musicNext(st*10)}}}
+/* Nächstes Stück, mit kurzer Pause davor */
+function musicNext(gap){MUS.song=(MUS.song+1)%SONGS.length;MUS.bar=0;MUS.step=0;MUS.rh=null;MUS.pi=4;MUS.ph=null;if(ac)MUS.next=Math.max(MUS.next,ac.currentTime)+(gap||.3);try{trackLabel()}catch(e){}}
 function musicStart(){if(MUS.on||!save.mus)return;const c=actx();if(!c)return;
   try{if(!MUS.out){const comp=c.createDynamicsCompressor();comp.connect(c.destination);MUS.out=c.createGain();MUS.out.gain.value=.0001;MUS.out.connect(comp);
       MUS.keys=c.createBiquadFilter();MUS.keys.type='lowpass';MUS.keys.frequency.value=2600;MUS.keys.connect(MUS.out);
-      const b=c.createBuffer(1,c.sampleRate,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;MUS.nz=b}
-    MUS.on=true;MUS.step=0;MUS.next=c.currentTime+.1;MUS.out.gain.cancelScheduledValues(c.currentTime);MUS.out.gain.setTargetAtTime(.26,c.currentTime,.25);
-    clearInterval(MUS.timer);MUS.timer=setInterval(mTick,40)}catch(e){MUS.on=false}}
+      const b=c.createBuffer(1,c.sampleRate,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;MUS.nz=b;
+      MUS.song=Math.floor(Math.random()*SONGS.length)}
+    MUS.on=true;MUS.step=0;MUS.bar=0;MUS.rh=null;MUS.next=c.currentTime+.1;MUS.out.gain.cancelScheduledValues(c.currentTime);MUS.out.gain.setTargetAtTime(.26,c.currentTime,.25);
+    clearInterval(MUS.timer);MUS.timer=setInterval(mTick,40);try{trackLabel()}catch(e){}}catch(e){MUS.on=false}}
 function musicStop(){MUS.on=false;clearInterval(MUS.timer);if(ac&&MUS.out){MUS.out.gain.cancelScheduledValues(ac.currentTime);MUS.out.gain.setTargetAtTime(.0001,ac.currentTime,.08)}}
 document.addEventListener('visibilitychange',()=>{if(!ac)return;try{if(document.hidden)ac.suspend();else ac.resume()}catch(e){}});
 document.addEventListener('pointerdown',()=>{if(save.mus&&!MUS.on)audio()},true);
@@ -649,7 +698,7 @@ function confetti(n){if(reduce)return;const w=innerWidth,h=innerHeight;
     fly(c,[{transform:`translate(${x}px,-20px) rotate(0deg)`,opacity:1},{transform:`translate(${x+dx}px,${h+20}px) rotate(${r}deg)`,opacity:.9}],
       {duration:1400+Math.random()*1300,delay:Math.random()*350,easing:'cubic-bezier(.3,.2,.6,1)',fill:'both'})}}
 /* ---------- Kundenaufträge (laufend, immer drei) und Tagesaufgaben (drei pro Tag, für alle gleich) ---------- */
-const jobMult=()=>SHAFTS[save.shaft].mult*pm();
+const jobMult=()=>SHAFTS[save.shaft].mult*pm()*(1+.25*save.up.deal);
 const ordSig=o=>o.kind+':'+(o.min||0)+':'+(o.ti||0)+':'+(o.need||0);
 function newOrder(){let o;for(let tries=0;tries<8;tries++){const k=Math.random();o={id:++save.ordN,p:0,need:1};
     if(k<.3){const i=Math.floor(Math.random()*4);o.kind='pur';o.min=[80,85,90,95][i];o.r=[150,260,480,950][i]}
@@ -680,7 +729,7 @@ function jobsStone(R){ensureJobs();const out=[],give=(r,label)=>{save.money+=r;s
 function renderJobs(){ensureJobs();const q=save.dq;
   $('dqNote').innerHTML=T(`Jede Aufgabe zahlt <b>${fmtM(Math.round(200*jobMult()))}</b>, alle drei zusammen noch einmal <b>${fmtM(Math.round(500*jobMult()))}</b>. Neue Aufgaben in <span id="dqCd">${countdown()}</span>.`,
     `Each task pays <b>${fmtM(Math.round(200*jobMult()))}</b>, all three together another <b>${fmtM(Math.round(500*jobMult()))}</b>. New tasks in <span id="dqCd">${countdown()}</span>.`);
-  const row=(txt,p,g,done,pay)=>`<li class="${done?'done':''}"><div class="txt"><div class="nm">${txt}</div><div class="ds">${done?T('Erledigt','Done'):fmtInt(Math.min(p,g))+' / '+fmtInt(g)}</div><div class="meter"><i style="width:${done?100:Math.min(100,100*p/g)}%"></i></div></div><span class="pay">${done?'✓':'+'+fmtM(pay)}</span></li>`;
+  const row=(txt,p,g,done,pay)=>`<li class="${done?'done':''}"><div class="txt"><div class="nm">${txt}</div><div class="ds">${done?T('Erledigt','Done'):fmtBig(Math.min(p,g))+' / '+fmtBig(g)}</div><div class="meter"><i style="width:${done?100:Math.min(100,100*p/g)}%"></i></div></div><span class="pay">${done?'✓':'+'+fmtM(pay)}</span></li>`;
   $('dqList').innerHTML=q.ks.map(k=>row(dqText(k),q.p[k]||0,q.g[k],!!q.d[k],Math.round(200*jobMult()))).join('');
   $('ordList').innerHTML=save.ord.map(o=>row(ordText(o),o.p,o.need,false,o.r)).join('')}
 
@@ -704,6 +753,7 @@ const ACH=[
   {k:'work',de:'Chef',en:'Boss',dd:'Stell Lehrlinge ein.',ed:'Hire apprentices.',g:1,v:()=>save.up.work,r:150},
   {k:'sh2',de:'Tiefer',en:'Deeper',dd:'Schalte Schacht 2 frei.',ed:'Unlock Shaft 2.',g:1,v:()=>save.shaft,r:400},
   {k:'sh5',de:'Ganz unten',en:'Rock bottom',dd:'Erreiche die Tiefensohle.',ed:'Reach the Deep Level.',g:4,v:()=>save.shaft,r:60000},
+  {k:'sh10',de:'Sternenstaub',en:'Stardust',dd:'Erreiche den tiefsten Schacht.',ed:'Reach the deepest shaft.',g:9,v:()=>save.shaft,r:5e8},
   {k:'e5',de:'Erstes Vermögen',en:'First fortune',dd:'Verdiene insgesamt 100.000 ◈.',ed:'Earn 100,000 ◈ in total.',g:1e5,v:()=>save.st.earned,r:10000},
   {k:'e6',de:'Millionär',en:'Millionaire',dd:'Verdiene insgesamt 1.000.000 ◈.',ed:'Earn 1,000,000 ◈ in total.',g:1e6,v:()=>save.st.earned,r:100000},
   {k:'pres',de:'Neuanfang',en:'Fresh start',dd:'Mach deinen ersten Meisterbrief.',ed:'Earn your first master\'s certificate.',g:1,v:()=>save.pres,r:5000},
@@ -732,9 +782,9 @@ function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.
   const seed=Math.random()*4294967296>>>0,rushRoll=Math.random();
   /* Sonderform: ab dem dritten Stein, jeder vierte */
   const shape=L>=3&&Math.random()<.25?['round','needle','tiny'][Math.floor(Math.random()*3)]:null;if(shape==='round')cuts=Math.max(cuts,6);
-  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(seed,sides,sh,shape),cuts,0);R.shape=shape;
+  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(seed,sides,sh,shape,save.up.luck),cuts,0);R.shape=shape;
   /* Zeitstein: selten, nie zweimal hintereinander, nie als erster Stein der Schicht */
-  if(mine.level>=2&&!mine.lastRush&&rushRoll<RUSH_P){R.rush=true;R.time=R.timeMax=4+cuts*.9;R.grace=1.9}
+  if(mine.level>=2&&!mine.lastRush&&rushRoll<RUSH_P){R.rush=true;R.time=R.timeMax=4+cuts*.9+1.5*save.up.clock;R.grace=1.9}
   mine.lastRush=!!R.rush}
 /* Zeitstein: nur wenige Sekunden. Zeit um, Riss oder zu unrein = verloren, keine Belohnung. Geschafft = achtfacher Preis. */
 const RUSH_P=.14,RUSH_X=8,RUSH_MIN=60;
@@ -943,7 +993,7 @@ function renderVitrine(){const today=dayKey(),keys=Object.keys(save.days).sort()
   const ord=a=>save.ach[a.k]===1?0:save.ach[a.k]===2?2:1;
   $('achs').innerHTML=ACH.slice().sort((a,b)=>ord(a)-ord(b)).map(a=>{const s=save.ach[a.k]||0,v=Math.min(a.g,Math.max(0,a.v()));
     const btn=s===2?`<button class="buy on" disabled>${T('Erhalten','Claimed')}</button>`:s===1?`<button class="buy" data-ach="${a.k}">+${fmtM(a.r)}</button>`:`<button class="buy" disabled>${fmtM(a.r)}</button>`;
-    return`<li class="${s===2?'got':''}"><div class="txt"><div class="nm">${T(a.de,a.en)}${s?'':`<span class="lv pg">${fmtInt(v)} / ${fmtInt(a.g)}</span>`}</div><div class="ds">${T(a.dd,a.ed)}</div></div>${btn}</li>`}).join('');
+    return`<li class="${s===2?'got':''}"><div class="txt"><div class="nm">${T(a.de,a.en)}${s?'':`<span class="lv pg">${fmtBig(v)} / ${fmtBig(a.g)}</span>`}</div><div class="ds">${T(a.dd,a.ed)}</div></div>${btn}</li>`}).join('');
   achDot()}
 $('achs').addEventListener('click',e=>{const b=e.target.closest('button[data-ach]');if(!b)return;const a=ACH.find(x=>x.k===b.dataset.ach);if(!a||save.ach[a.k]!==1)return;
   const r=b.getBoundingClientRect();save.ach[a.k]=2;save.money+=a.r;persist();audio();sfxBuy();coins(14,[r.left+r.width/2,r.top+r.height/2]);sfxCoins(8);showMoney();checkMiles();renderVitrine()});
@@ -1102,8 +1152,10 @@ $('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy'
 const sndBtn=$('sndBtn');$('langBtn').addEventListener('click',()=>{save.lang=EN?'de':'en';persist();location.reload()});
 if(EN)$('langBtn').setAttribute('aria-label','Auf Deutsch umschalten');
 const musBtn=$('musBtn');
+function trackLabel(){$('trkBtn').textContent=T('Nächstes Lied','Next track')+' · '+SONGS[MUS.song].n}
+$('trkBtn').addEventListener('click',()=>{if(!save.mus){save.mus=true;persist();sndLabel()}actx();if(MUS.on)musicNext(.2);else musicStart();trackLabel()});
 function sndLabel(){sndBtn.textContent=save.snd?T('Geräusche: an','Sound effects: on'):T('Geräusche: aus','Sound effects: off');sndBtn.setAttribute('aria-pressed',save.snd?'true':'false');
-  musBtn.textContent=save.mus?T('Musik: an','Music: on'):T('Musik: aus','Music: off');musBtn.setAttribute('aria-pressed',save.mus?'true':'false')}
+  musBtn.textContent=save.mus?T('Musik: an','Music: on'):T('Musik: aus','Music: off');musBtn.setAttribute('aria-pressed',save.mus?'true':'false');trackLabel()}
 /* ---------- Menü: Einstellungen, Anleitung, Spielstand ---------- */
 let prevView='daily';
 if(EN)$('menuBtn').setAttribute('aria-label','Menu');

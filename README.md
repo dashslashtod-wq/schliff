@@ -58,7 +58,7 @@ git push origin main main:gh-pages
 | `RUSH_P`, `RUSH_X`, `RUSH_MIN` | Zeitstein: Chance, Preisfaktor, Mindest-Reinheit |
 | `DAILY_X` | Faktor für den Tagesstein |
 | `ACH` | Erfolge und Belohnungen |
-| `M_BARS`, `M_LEAD` | Musik: Akkorde, Bass, Melodie |
+| `SONGS`, `M_BASS`, `M_RH` | Musik: Stücke (Tempo, Akkorde, Ablauf), Bassfiguren, Melodie-Rhythmen |
 
 ## Spielstand
 
