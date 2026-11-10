@@ -58,7 +58,8 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .top-right{display:flex;align-items:center;gap:8px}
 .streak{font-weight:800;font-size:.8rem;color:var(--mint);white-space:nowrap}
 @media (max-width:480px){.streak{display:none}}
-.ghost-btn{background:var(--bench-2);border:0;border-radius:999px;padding:6px 12px;font-size:.8rem;font-weight:700;color:var(--ink-dim)}
+.ghost-btn{background:var(--bench-2);border:0;border-radius:999px;padding:6px 10px;font-size:.8rem;font-weight:700;color:var(--ink)}
+.ghost-btn.off{color:var(--ink-dim);text-decoration:line-through;opacity:.6}
 .ghost-btn:hover{color:var(--ink);background:var(--raise)}
 .money{font-family:var(--f-num);font-size:1.1rem;font-weight:600;color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums;
   background:var(--bench-2);border-radius:999px;padding:4px 12px 4px 6px;display:inline-flex;align-items:center;gap:6px}
@@ -197,7 +198,8 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
       <span class="streak" id="streak"></span>
       <button class="collect" id="collect" hidden></button>
       <span class="money" id="money" title="Dein Geld"></span>
-      <button class="ghost-btn" id="sndBtn" aria-pressed="true">Ton an</button>
+      <button class="ghost-btn" id="musBtn" aria-pressed="true" aria-label="Musik">♪</button>
+      <button class="ghost-btn" id="sndBtn" aria-pressed="true">Ton</button>
       <button class="ghost-btn" id="langBtn" aria-label="Switch to English" data-en="DE">EN</button>
     </div>
   </header>
@@ -278,7 +280,7 @@ const fmtInt=v=>String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,EN?',':'.'
 
 /* ---------- Speicher ---------- */
 const KEY='schliff.v1';
-let save={days:{},best:0,snd:true,seen:false,cur:null,n:0,money:0,shaft:0,sel:0,up:{}};
+let save={days:{},best:0,snd:true,mus:true,seen:false,cur:null,n:0,money:0,shaft:0,sel:0,up:{}};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'&&s.days)save=Object.assign(save,s)}catch(e){}
 save.up=Object.assign({lupe:0,guide:0,cut:0,ins:0,pol:0,work:0,store:0},save.up);
 /* Zeitlupe gibt es nicht mehr: Kaufpreis zurückzahlen */
@@ -428,7 +430,59 @@ function snap(R,A,B){const lv=R.mode==='mine'?save.up.guide:0;if(!lv)return null
 
 /* ---------- Ton ---------- */
 let ac=null;
-function audio(){if(!save.snd)return null;try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();return ac}catch(e){return null}}
+function actx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended'&&!document.hidden)ac.resume();return ac}catch(e){return null}}
+function audio(){const c=actx();if(c&&save.mus)musicStart();return save.snd?c:null}
+
+/* ---------- Musik: Funk-Schleife, komplett im Browser erzeugt (8 Takte, 102 BPM, geshuffelte Sechzehntel) ---------- */
+const MUS={on:false,timer:0,step:0,next:0,out:null,keys:null,nz:null};
+const M_STEP=60/102/4,M_SWING=.17,mtof=m=>440*Math.pow(2,(m-69)/12);
+/* Em9 | A13 | Cmaj9 | B7#9 — r: Bass-Grundton, ch: Akkord, b: Bass [Schritt, Halbtöne, Länge], hat: offene Hi-Hat */
+const M_BARS=[
+  {r:40,ch:[55,59,62,66],b:[[0,0,2],[3,0,1],[4,12,1],[6,10,1],[7,12,1],[10,0,2],[14,7,1],[15,10,1]]},
+  {r:45,ch:[55,59,61,66],b:[[0,0,2],[3,12,1],[6,0,1],[7,7,1],[10,10,1],[11,12,1],[14,0,1]],oh:1},
+  {r:36,ch:[55,59,62,64],b:[[0,0,2],[3,0,1],[4,12,1],[6,7,1],[7,9,1],[10,12,2],[14,7,1]]},
+  {r:35,ch:[57,63,66,74],b:[[0,0,2],[3,12,1],[6,0,1],[8,10,1],[10,12,1],[12,0,1],[14,3,1],[15,4,1]],oh:1}
+];
+/* Melodie nur im zweiten Durchgang (Takte 5–8): [Schritt, Ton, Länge] */
+const M_LEAD=[
+  [[0,76,2],[3,79,1],[4,81,2],[7,83,1],[10,81,1],[11,79,2]],
+  [[2,83,1],[4,81,1],[6,79,2],[10,76,3]],
+  [[0,79,2],[3,76,1],[6,74,1],[7,76,3]],
+  [[2,75,1],[4,78,1],[6,81,2],[10,78,1],[12,75,3]]
+];
+function mHit(t,type,f,q,dur,g){const c=ac,s=c.createBufferSource(),fl=c.createBiquadFilter(),gn=c.createGain();s.buffer=MUS.nz;fl.type=type;fl.frequency.value=f;fl.Q.value=q;
+  gn.gain.setValueAtTime(g,t);gn.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(fl).connect(gn).connect(MUS.out);s.start(t,Math.random()*.5,dur+.03)}
+function mKick(t){const c=ac,o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.11);
+  g.gain.setValueAtTime(.95,t);g.gain.exponentialRampToValueAtTime(.0001,t+.24);o.connect(g).connect(MUS.out);o.start(t);o.stop(t+.26)}
+function mBass(t,m,dur){const c=ac,o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain();o.type='sawtooth';o.frequency.value=mtof(m);
+  f.type='lowpass';f.Q.value=7;f.frequency.setValueAtTime(1200,t);f.frequency.exponentialRampToValueAtTime(260,t+Math.min(.16,dur));
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.4,t+.008);g.gain.setValueAtTime(.4,t+dur*.65);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(f).connect(g).connect(MUS.out);o.start(t);o.stop(t+dur+.03)}
+function mKey(t,m,dur,v){const c=ac,g=c.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+dur);g.connect(MUS.keys);
+  for(const[k,ty,dt]of[[1,'triangle',-4],[1,'triangle',5],[2,'sine',0]]){const o=c.createOscillator();o.type=ty;o.frequency.value=mtof(m)*k;o.detune.value=dt;o.connect(g);o.start(t);o.stop(t+dur+.03)}}
+function mLead(t,m,dur){const c=ac,o=c.createOscillator(),l=c.createOscillator(),lg=c.createGain(),g=c.createGain();o.type='triangle';o.frequency.value=mtof(m);
+  l.frequency.value=5.5;lg.gain.value=5;l.connect(lg).connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.13,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g).connect(MUS.keys);o.start(t);l.start(t);o.stop(t+dur+.03);l.stop(t+dur+.03)}
+function mStep(n,t){const bar=Math.floor(n/16),s=n%16,B=M_BARS[bar%4];
+  if(s===0||s===7||s===10||(bar%4===3&&s===14))mKick(t);
+  if(s===4||s===12){mHit(t,'bandpass',1900,.8,.13,.42);mHit(t,'highpass',5000,.5,.07,.14)}
+  if(s===15&&bar%2)mHit(t,'bandpass',1900,.8,.06,.12);
+  if(B.oh&&s===14)mHit(t,'highpass',7500,.6,.2,.1);else mHit(t,'highpass',8000,.6,.035,s%2?.045:s%4?.085:.11);
+  for(const b of B.b)if(b[0]===s)mBass(t,B.r+b[1],b[2]*M_STEP*.92);
+  if(s===3||s===6||s===13)for(const m of B.ch)mKey(t,m,.13,.085);
+  if(s===10)for(const m of B.ch)mKey(t,m,.34,.075);
+  if(bar>=4)for(const l of M_LEAD[bar-4])if(l[0]===s)mLead(t,l[1],l[2]*M_STEP*.95)}
+function mTick(){if(!ac||!MUS.on||ac.state!=='running')return;if(MUS.next<ac.currentTime)MUS.next=ac.currentTime+.06;
+  while(MUS.next<ac.currentTime+.2){mStep(MUS.step,MUS.next+(MUS.step%2?M_SWING*M_STEP:0));MUS.next+=M_STEP;MUS.step=(MUS.step+1)%128}}
+function musicStart(){if(MUS.on||!save.mus)return;const c=actx();if(!c)return;
+  try{if(!MUS.out){const comp=c.createDynamicsCompressor();comp.connect(c.destination);MUS.out=c.createGain();MUS.out.gain.value=.0001;MUS.out.connect(comp);
+      MUS.keys=c.createBiquadFilter();MUS.keys.type='lowpass';MUS.keys.frequency.value=2600;MUS.keys.connect(MUS.out);
+      const b=c.createBuffer(1,c.sampleRate,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;MUS.nz=b}
+    MUS.on=true;MUS.step=0;MUS.next=c.currentTime+.1;MUS.out.gain.cancelScheduledValues(c.currentTime);MUS.out.gain.setTargetAtTime(.26,c.currentTime,.25);
+    clearInterval(MUS.timer);MUS.timer=setInterval(mTick,40)}catch(e){MUS.on=false}}
+function musicStop(){MUS.on=false;clearInterval(MUS.timer);if(ac&&MUS.out){MUS.out.gain.cancelScheduledValues(ac.currentTime);MUS.out.gain.setTargetAtTime(.0001,ac.currentTime,.08)}}
+document.addEventListener('visibilitychange',()=>{if(!ac)return;try{if(document.hidden)ac.suspend();else ac.resume()}catch(e){}});
+document.addEventListener('pointerdown',()=>{if(save.mus&&!MUS.on)audio()},true);
 function env(g,t,a,d,peak){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d)}
 function tone(c,type,f,t,a,d,peak,f2){const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+a+d);
   env(g,t,a,d,peak);o.connect(g).connect(c.destination);o.start(t);o.stop(t+a+d+.05)}
@@ -758,7 +812,12 @@ $('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy'
   persist();renderShop()});
 const sndBtn=$('sndBtn');$('langBtn').addEventListener('click',()=>{save.lang=EN?'de':'en';persist();location.reload()});
 if(EN)$('langBtn').setAttribute('aria-label','Auf Deutsch umschalten');
-function sndLabel(){sndBtn.textContent=save.snd?T('Ton an','Sound on'):T('Ton aus','Sound off');sndBtn.setAttribute('aria-pressed',save.snd?'true':'false')}
+const musBtn=$('musBtn');
+function sndLabel(){sndBtn.textContent=T('Ton','SFX');sndBtn.classList.toggle('off',!save.snd);sndBtn.setAttribute('aria-pressed',save.snd?'true':'false');
+  sndBtn.title=save.snd?T('Geräusche an','Sound effects on'):T('Geräusche aus','Sound effects off');
+  musBtn.classList.toggle('off',!save.mus);musBtn.setAttribute('aria-pressed',save.mus?'true':'false');musBtn.setAttribute('aria-label',T('Musik','Music'));
+  musBtn.title=save.mus?T('Musik an','Music on'):T('Musik aus','Music off')}
+musBtn.addEventListener('click',()=>{save.mus=!save.mus;persist();sndLabel();if(save.mus){actx();musicStart()}else musicStop()});
 sndBtn.addEventListener('click',()=>{save.snd=!save.snd;persist();sndLabel();if(save.snd)sfxMiss()});
 function closeIntro(v){save.seen=true;persist();$('intro').hidden=true;audio();if(v!==view)setView(v);else announce(cur())}
 $('introDaily').addEventListener('click',()=>closeIntro('daily'));
