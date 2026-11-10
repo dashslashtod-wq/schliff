@@ -5,9 +5,9 @@ const path = require('path');
 
 const src = fs.readFileSync(path.join(__dirname, 'schliff.html'), 'utf8');
 const icon = "data:image/svg+xml," + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#131a20"/>' +
-  '<polygon points="32,10 52,26 44,52 20,52 12,26" fill="#e2b557"/><polygon points="32,10 52,26 32,32" fill="#f6dc9a"/>' +
-  '<polygon points="12,26 32,32 20,52" fill="#b98a2e"/></svg>');
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1d2440"/>' +
+  '<polygon points="32,10 52,26 44,52 20,52 12,26" fill="#ffc94d"/><polygon points="32,10 52,26 32,32" fill="#ffe6a3"/>' +
+  '<polygon points="12,26 32,32 20,52" fill="#d9971a"/></svg>');
 
 const head = `<!doctype html>
 <html lang="de">
@@ -15,7 +15,7 @@ const head = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Schliff: Schneide den Stein, leg das Juwel frei. Jeden Tag ein neuer Stein, für alle derselbe.">
-<meta name="theme-color" content="#131a20">
+<meta name="theme-color" content="#1d2440">
 <meta property="og:title" content="Schliff">
 <meta property="og:description" content="Schneide den Stein, leg das Juwel frei. Jeden Tag ein neuer Stein, für alle derselbe.">
 <meta property="og:type" content="website">
