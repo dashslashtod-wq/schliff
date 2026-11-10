@@ -82,8 +82,15 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .collect.full{background:var(--brass);color:var(--brass-ink);animation:nudge 1.6s ease-in-out infinite}
 @keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--bench-2);border-radius:16px;padding:5px}
-.tabs button{background:none;border:0;border-radius:12px;padding:9px 2px;font-weight:800;color:var(--ink-dim);min-width:0}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;background:var(--bench-2);border-radius:16px;padding:5px}
+.tabs button{background:none;border:0;border-radius:12px;padding:9px 2px;font-weight:800;font-size:.9rem;color:var(--ink-dim);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:430px){.tabs button{font-size:.76rem}}
+#jobsView{overflow-y:auto;gap:14px;padding-bottom:8px}
+#jobsView h2{margin:6px 0 0;font-family:var(--f-display);font-weight:700;font-size:1.3rem}
+.shop-list li.done{opacity:.6}
+.pay{flex:none;min-width:96px;text-align:center;font-family:var(--f-num);font-weight:600;font-size:.92rem;color:var(--mint)}
+.meter{height:8px;border-radius:999px;background:var(--shade);overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%;border-radius:999px;background:var(--mint)}
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected="true"]{background:var(--brass);color:var(--brass-ink);box-shadow:0 3px 0 var(--brass-deep)}
 
@@ -257,8 +264,9 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Bereich">
-    <button role="tab" id="tab-daily" data-view="daily" aria-selected="true" data-en="Daily">Tagesstein</button>
+    <button role="tab" id="tab-daily" data-view="daily" aria-selected="true" data-en="Today">Heute</button>
     <button role="tab" id="tab-mine" data-view="mine" aria-selected="false">Mine</button>
+    <button role="tab" id="tab-jobs" data-view="jobs" aria-selected="false" data-en="Jobs">Aufträge</button>
     <button role="tab" id="tab-shop" data-view="shop" aria-selected="false" data-en="Shop">Laden</button>
     <button role="tab" id="tab-vitrine" data-view="vitrine" aria-selected="false" data-en="Showcase">Vitrine</button>
   </nav>
@@ -296,6 +304,15 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     </div>
   </section>
 
+  <section class="view" id="jobsView" hidden>
+    <h2 data-en="Daily tasks">Tagesaufgaben</h2>
+    <p class="note" id="dqNote"></p>
+    <ul class="shop-list" id="dqList"></ul>
+    <h2 data-en="Customer orders">Kundenaufträge</h2>
+    <p class="note" data-en="Fill an order and the customer pays right away. A new order follows. Stones from the mine and the daily stone both count.">Erfüllst du einen Auftrag, zahlt der Kunde sofort. Danach kommt ein neuer. Steine aus der Mine und der Tagesstein zählen beide.</p>
+    <ul class="shop-list" id="ordList"></ul>
+  </section>
+
   <section class="view" id="shopView" hidden>
     <h2 data-en="Workshop">Werkstatt</h2>
     <p class="note" id="idleInfo"></p>
@@ -304,6 +321,9 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     <ul class="shop-list" id="shafts"></ul>
     <h2 data-en="Tools">Hilfsmittel</h2>
     <ul class="shop-list" id="tools"></ul>
+    <h2 data-en="Master's certificate">Meisterbrief</h2>
+    <p class="note" id="presInfo"></p>
+    <div class="set-row"><button class="btn" id="presBtn"></button></div>
     <p class="note" data-en="Tools only work in the mine. The daily stone is the same for everyone, but it pays ten times as much and grows with your deepest shaft and your streak.">Hilfsmittel wirken nur in der Mine. Der Tagesstein bleibt für alle gleich, bringt aber das Zehnfache und wächst mit deinem tiefsten Schacht und deiner Serie.</p>
   </section>
 
@@ -372,7 +392,7 @@ try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'&&s.d
 save.up=Object.assign({lupe:0,guide:0,cut:0,ins:0,pol:0,work:0,store:0},save.up);
 /* Zeitlupe gibt es nicht mehr: Kaufpreis zurückzahlen */
 if(save.up.slow){save.money=(+save.money||0)+[0,600,3600,17600][Math.min(3,save.up.slow|0)]}delete save.up.slow;
-save.bank=Math.max(0,+save.bank||0);save.idleT=+save.idleT||0;
+save.bank=Math.max(0,+save.bank||0);save.idleT=+save.idleT||0;save.pres=save.pres|0;save.ordN=save.ordN|0;if(!Array.isArray(save.ord))save.ord=[];
 /* Statistik für Erfolge und Sammlung. Alte Spielstände: aus den Tagessteinen nachtragen. */
 {const fresh=!save.st;save.st=Object.assign({stones:0,fl:0,rush:0,earned:0,types:{}},save.st);save.ach=save.ach||{};
   if(fresh)for(const k in save.days){const d=save.days[k],r=save.st.types[d.t]||(save.st.types[d.t]={n:0,b:0});r.n++;r.b=Math.max(r.b,d.s);save.st.stones++;if(d.s>=97)save.st.fl++}}
@@ -415,7 +435,12 @@ const TYPES=[
   {n:'Saphir',h:222,s:78,w:12,v:4},
   {n:'Rubin',h:350,s:80,w:10,v:5},
   {n:'Opal',h:175,s:55,w:5,iri:1,v:9},
-  {n:'Diamant',h:195,s:28,w:3,bright:1,v:16}
+  {n:'Diamant',h:195,s:28,w:3,bright:1,v:16},
+  /* neue Arten immer hinten anhängen: die Nummer steht in Spielständen */
+  {n:'Aquamarin',h:186,s:62,w:14,v:2.5},
+  {n:'Turmalin',h:322,s:68,w:9,v:6},
+  {n:'Tansanit',h:258,s:72,w:4,v:11},
+  {n:'Alexandrit',h:140,s:58,w:2,iri:1,v:20}
 ];
 /* ---------- Wirtschaft ---------- */
 const SHAFTS=[
@@ -437,7 +462,9 @@ const IDLE=[
   {k:'work',n:'Lehrlinge',d:'Schleifen und verkaufen Steine, auch wenn du nicht spielst. Jede Stufe verdient mehr pro Stunde.',costs:[150,1200,6000,30000,120000,500000,2000000],rate:[0,60,150,350,800,1800,4000,9000]},
   {k:'store',n:'Lager',d:'Ist das Lager voll, hören die Lehrlinge auf. Jede Stufe fasst mehr Stunden.',costs:[800,5000,30000,200000],hours:[2,4,8,12,24]}
 ];
-const idleRate=()=>IDLE[0].rate[save.up.work]*SHAFTS[save.shaft].mult;
+/* Meisterbrief: jeder gibt dauerhaft +50 % auf Preise, Lehrlinge und Auftragslohn */
+const pm=()=>1+.5*(save.pres||0);
+const idleRate=()=>IDLE[0].rate[save.up.work]*SHAFTS[save.shaft].mult*pm();
 const idleHours=()=>IDLE[1].hours[save.up.store];
 const idleCap=()=>idleRate()*idleHours();
 function accrue(){const now=Date.now();if(!save.idleT||now<save.idleT)save.idleT=now;
@@ -445,7 +472,7 @@ function accrue(){const now=Date.now();if(!save.idleT||now<save.idleT)save.idleT
 const fmtDur=ms=>{const m=Math.floor(ms/6e4),h=Math.floor(m/60);return h?`${h} h ${m%60} min`:`${m} min`};
 const GBONUS=[2,1.5,1.2,1,1];
 const fmtM=v=>fmtInt(v)+' ◈';
-function price(stone,s,shaft,pol){return Math.max(1,Math.round(stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*(pol?1+.15*save.up.pol:1)))}
+function price(stone,s,shaft,pol){return Math.max(1,Math.round(stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*pm()*(pol?1+.15*save.up.pol:1)))}
 const DAILY_X=10;
 const streakBonus=()=>1+Math.min(10,streak())*.1;
 let moneyShown=-1,moneyHold=0,moneyAnim=0;
@@ -457,10 +484,13 @@ function showMoney(){if(Date.now()<moneyHold)return;const e=$('money'),to=save.m
 const WSUM=TYPES.reduce((a,t)=>a+t.w,0);
 const GRADES=[[97,'FL','lupenrein'],[92,'VVS','fast lupenrein'],[85,'VS','sehr fein'],[72,'SI','fein'],[0,'P','Piqué']];
 const gradeIdx=s=>GRADES.findIndex(g=>s>=g[0]);
-function makeStone(seed,sides,shaft=0){const r=rng(seed),ex=1/(1+.6*shaft),ws=TYPES.map(t=>Math.pow(t.w,ex)),sum=ws.reduce((a,b)=>a+b,0);
+/* Sonderformen (nur Mine): round = Rundschliff mit 12 Kanten, needle = lang und schmal, tiny = halb so groß. Schwerer, dafür teurer. */
+const SHAPES={round:{de:'Rundschliff',en:'Round cut',x:1.3},needle:{de:'Nadel',en:'Needle',x:1.25},tiny:{de:'Winzling',en:'Tiny',x:1.5}};
+function makeStone(seed,sides,shaft=0,shape){const r=rng(seed),ex=1/(1+.6*shaft),ws=TYPES.map(t=>Math.pow(t.w,ex)),sum=ws.reduce((a,b)=>a+b,0);
   let w=r()*sum,ti=0;while(ti<TYPES.length-1&&w>=ws[ti]){w-=ws[ti];ti++}
-  const n=sides||5+Math.floor(r()*3),gr=.40+r()*.1,oa=r()*TAU,od=r()*.16;
-  const gem=ellipsePoly(r,n,gr,gr*(.7+r()*.3),r()*TAU,.5,Math.cos(oa)*od,Math.sin(oa)*od);
+  const n=shape==='round'?12:sides||5+Math.floor(r()*3),g0=.40+r()*.1,oa=r()*TAU,od=r()*.16,gr=shape==='tiny'?g0*.5:shape==='needle'?g0*1.05:g0;
+  const squash=shape==='needle'?.3+r()*.06:shape==='round'?.9+r()*.1:.7+r()*.3;
+  const gem=ellipsePoly(r,n,gr,gr*squash,r()*TAU,shape==='round'?.15:.5,Math.cos(oa)*od,Math.sin(oa)*od);
   const rock=ellipsePoly(r,9+Math.floor(r()*4),.95+r()*.07,.86+r()*.1,r()*TAU,.6);
   return{ti,type:TYPES[ti],gem,rock,ct:Math.round((1+r()*r()*8)*(1+.5*shaft)*10)/10}}
 const gemColor=(t,sh,i)=>t.iri?`hsl(${t.h+sh*110+i*14} ${t.s}% ${48+sh*30}%)`:t.bright?`hsl(${t.h} ${t.s}% ${62+sh*34}%)`:`hsl(${t.h} ${t.s}% ${32+sh*42}%)`;
@@ -470,7 +500,7 @@ const TIER=['Gewöhnlich','Ungewöhnlich','Selten','Episch','Legendär'],TIERSUB
 const tier=t=>t.v>=16?4:t.v>=9?3:t.v>=4?2:t.v>=2?1:0;
 
 /* ---------- Englische Namen ---------- */
-if(EN){['Rock Crystal','Amethyst','Citrine','Emerald','Sapphire','Ruby','Opal','Diamond'].forEach((n,i)=>{TYPES[i].n=n});
+if(EN){['Rock Crystal','Amethyst','Citrine','Emerald','Sapphire','Ruby','Opal','Diamond','Aquamarine','Tourmaline','Tanzanite','Alexandrite'].forEach((n,i)=>{TYPES[i].n=n});
   [['Open Pit','Easy stones, small prices.'],['Shaft 2','Prices ×3. More edges, fewer cuts.'],['Shaft 3','Prices ×9. More rare stones.'],['Shaft 4','Prices ×27. Many edges, few cuts.'],['Deep Level','Prices ×80. Steady hands only.']]
     .forEach((a,i)=>{SHAFTS[i].n=a[0];SHAFTS[i].d=a[1]});
   const tl={lupe:['Loupe','Shows how pure the stone will be before you release the cut.'],pol:['Polisher','Each level: 15% higher sale price.'],
@@ -618,6 +648,42 @@ function confetti(n){if(reduce)return;const w=innerWidth,h=innerHeight;
     const x=Math.random()*w,dx=(Math.random()-.5)*180,r=Math.random()*900-450;
     fly(c,[{transform:`translate(${x}px,-20px) rotate(0deg)`,opacity:1},{transform:`translate(${x+dx}px,${h+20}px) rotate(${r}deg)`,opacity:.9}],
       {duration:1400+Math.random()*1300,delay:Math.random()*350,easing:'cubic-bezier(.3,.2,.6,1)',fill:'both'})}}
+/* ---------- Kundenaufträge (laufend, immer drei) und Tagesaufgaben (drei pro Tag, für alle gleich) ---------- */
+const jobMult=()=>SHAFTS[save.shaft].mult*pm();
+const ordSig=o=>o.kind+':'+(o.min||0)+':'+(o.ti||0)+':'+(o.need||0);
+function newOrder(){let o;for(let tries=0;tries<8;tries++){const k=Math.random();o={id:++save.ordN,p:0,need:1};
+    if(k<.3){const i=Math.floor(Math.random()*4);o.kind='pur';o.min=[80,85,90,95][i];o.r=[150,260,480,950][i]}
+    else if(k<.55){o.kind='type';o.ti=[0,1,2,3,8][Math.floor(Math.random()*5)];o.min=60;o.r=320}
+    else if(k<.75){o.kind='tier';o.min=50;o.r=520}
+    else{o.kind='count';o.min=70;o.need=3+Math.floor(Math.random()*3);o.r=130*o.need}
+    if(!save.ord.some(x=>ordSig(x)===ordSig(o)))break}
+  o.r=Math.round(o.r*jobMult());return o}
+const ordText=o=>o.kind==='pur'?T(`Ein Stein mit mindestens ${o.min} %`,`One stone at ${o.min}% or more`)
+  :o.kind==='type'?T(`Ein ${TYPES[o.ti].n} mit mindestens ${o.min} %`,`One ${TYPES[o.ti].n} at ${o.min}% or more`)
+  :o.kind==='tier'?T(`Ein seltener oder besserer Stein, mindestens ${o.min} %`,`One rare or better stone, at least ${o.min}%`)
+  :T(`${o.need} Steine mit mindestens ${o.min} %`,`${o.need} stones at ${o.min}% or more`);
+function ensureJobs(){while(save.ord.length<3)save.ord.push(newOrder());
+  const key=dayKey();if(!save.dq||save.dq.day!==key){const r=rng(seedOf(key)^0x5bd1e995),pool=['stones','earn','pure','clean'],a=pool.splice(Math.floor(r()*pool.length),1)[0],b=pool[Math.floor(r()*pool.length)];
+    save.dq={day:key,ks:['daily',a,b],p:{},d:{},all:0,g:{daily:1,stones:5+Math.floor(r()*4),earn:Math.round(400*jobMult()),pure:1,clean:3},pm:r()<.5?85:90}}}
+const dqText=k=>{const g=save.dq.g[k];return k==='daily'?T('Schleife den Tagesstein','Cut the daily stone'):k==='stones'?T(`Schleife ${g} Steine`,`Cut ${g} stones`)
+  :k==='earn'?T(`Verdiene ${fmtM(g)} mit Steinen`,`Earn ${fmtM(g)} from stones`):k==='pure'?T(`Erreiche einmal ${save.dq.pm} % oder mehr`,`Reach ${save.dq.pm}% or more once`)
+  :T(`Schleife ${g} Steine ohne Riss`,`Cut ${g} stones without a crack`)};
+/* Nach jedem fertigen Stein. Gibt die Banner zurück, die später gezeigt werden. */
+function jobsStone(R){ensureJobs();const out=[],give=(r,label)=>{save.money+=r;save.st.earned+=r;out.push(['+'+fmtM(r),label])};
+  for(let i=0;i<save.ord.length;i++){const o=save.ord[i];
+    if(R.final>=o.min&&(o.kind!=='type'||R.stone.ti===o.ti)&&(o.kind!=='tier'||tier(R.stone.type)>=2)){o.p++;
+      if(o.p>=o.need){give(o.r,T('Auftrag erfüllt','Order filled'));save.st.orders=(save.st.orders||0)+1;save.ord[i]=newOrder()}}}
+  const q=save.dq,add=(k,n)=>{if(!q.ks.includes(k)||q.d[k])return;q.p[k]=(q.p[k]||0)+n;if(q.p[k]>=q.g[k]){q.d[k]=1;give(Math.round(200*jobMult()),T('Tagesaufgabe erledigt','Daily task done'))}};
+  add('stones',1);add('earn',R.pay||0);if(R.final>=q.pm)add('pure',1);if(!R.cracks)add('clean',1);if(R.mode==='daily')add('daily',1);
+  if(!q.all&&q.ks.every(k=>q.d[k])){q.all=1;give(Math.round(500*jobMult()),T('Alle Tagesaufgaben','All daily tasks'))}
+  persist();return out}
+function renderJobs(){ensureJobs();const q=save.dq;
+  $('dqNote').innerHTML=T(`Jede Aufgabe zahlt <b>${fmtM(Math.round(200*jobMult()))}</b>, alle drei zusammen noch einmal <b>${fmtM(Math.round(500*jobMult()))}</b>. Neue Aufgaben in <span id="dqCd">${countdown()}</span>.`,
+    `Each task pays <b>${fmtM(Math.round(200*jobMult()))}</b>, all three together another <b>${fmtM(Math.round(500*jobMult()))}</b>. New tasks in <span id="dqCd">${countdown()}</span>.`);
+  const row=(txt,p,g,done,pay)=>`<li class="${done?'done':''}"><div class="txt"><div class="nm">${txt}</div><div class="ds">${done?T('Erledigt','Done'):fmtInt(Math.min(p,g))+' / '+fmtInt(g)}</div><div class="meter"><i style="width:${done?100:Math.min(100,100*p/g)}%"></i></div></div><span class="pay">${done?'✓':'+'+fmtM(pay)}</span></li>`;
+  $('dqList').innerHTML=q.ks.map(k=>row(dqText(k),q.p[k]||0,q.g[k],!!q.d[k],Math.round(200*jobMult()))).join('');
+  $('ordList').innerHTML=save.ord.map(o=>row(ordText(o),o.p,o.need,false,o.r)).join('')}
+
 /* ---------- Erfolge: g Ziel, v aktueller Wert, r Belohnung ---------- */
 const stn=i=>(save.st.types[i]||{}).n||0;
 const ACH=[
@@ -629,9 +695,9 @@ const ACH=[
   {k:'fl10',de:'Ruhige Hand',en:'Steady hand',dd:'Schleife 10 lupenreine Steine.',ed:'Cut 10 flawless stones.',g:10,v:()=>save.st.fl,r:8000},
   {k:'rush1',de:'Auf die Sekunde',en:'Just in time',dd:'Schaffe einen Zeitstein.',ed:'Finish a rush stone.',g:1,v:()=>save.st.rush,r:500},
   {k:'rush10',de:'Eilauftrag',en:'Rush order',dd:'Schaffe 10 Zeitsteine.',ed:'Finish 10 rush stones.',g:10,v:()=>save.st.rush,r:8000},
-  {k:'epic',de:'Feuer im Stein',en:'Fire in the stone',dd:'Schleife einen epischen Stein.',ed:'Cut an epic stone.',g:1,v:()=>stn(6),r:800},
-  {k:'legend',de:'Unvergänglich',en:'Forever',dd:'Schleife einen legendären Stein.',ed:'Cut a legendary stone.',g:1,v:()=>stn(7),r:4000},
-  {k:'all',de:'Volle Sammlung',en:'Full collection',dd:'Schleife alle 8 Steinarten.',ed:'Cut all 8 kinds of stone.',g:8,v:()=>TYPES.filter((t,i)=>stn(i)>0).length,r:6000},
+  {k:'epic',de:'Feuer im Stein',en:'Fire in the stone',dd:'Schleife einen epischen Stein.',ed:'Cut an epic stone.',g:1,v:()=>TYPES.reduce((s,t,i)=>s+(tier(t)===3?stn(i):0),0),r:800},
+  {k:'legend',de:'Unvergänglich',en:'Forever',dd:'Schleife einen legendären Stein.',ed:'Cut a legendary stone.',g:1,v:()=>TYPES.reduce((s,t,i)=>s+(tier(t)===4?stn(i):0),0),r:4000},
+  {k:'all',de:'Volle Sammlung',en:'Full collection',dd:'Schleife jede Steinart mindestens einmal.',ed:'Cut every kind of stone at least once.',g:12,v:()=>TYPES.filter((t,i)=>stn(i)>0).length,r:6000},
   {k:'st3',de:'Drei am Stück',en:'Three in a row',dd:'Schleife den Tagesstein an 3 Tagen in Folge.',ed:'Cut the daily stone 3 days in a row.',g:3,v:()=>streak(),r:600},
   {k:'st7',de:'Eine ganze Woche',en:'A whole week',dd:'Schleife den Tagesstein an 7 Tagen in Folge.',ed:'Cut the daily stone 7 days in a row.',g:7,v:()=>streak(),r:4000},
   {k:'st30',de:'Ein ganzer Monat',en:'A whole month',dd:'Schleife den Tagesstein an 30 Tagen in Folge.',ed:'Cut the daily stone 30 days in a row.',g:30,v:()=>streak(),r:40000},
@@ -639,7 +705,9 @@ const ACH=[
   {k:'sh2',de:'Tiefer',en:'Deeper',dd:'Schalte Schacht 2 frei.',ed:'Unlock Shaft 2.',g:1,v:()=>save.shaft,r:400},
   {k:'sh5',de:'Ganz unten',en:'Rock bottom',dd:'Erreiche die Tiefensohle.',ed:'Reach the Deep Level.',g:4,v:()=>save.shaft,r:60000},
   {k:'e5',de:'Erstes Vermögen',en:'First fortune',dd:'Verdiene insgesamt 100.000 ◈.',ed:'Earn 100,000 ◈ in total.',g:1e5,v:()=>save.st.earned,r:10000},
-  {k:'e6',de:'Millionär',en:'Millionaire',dd:'Verdiene insgesamt 1.000.000 ◈.',ed:'Earn 1,000,000 ◈ in total.',g:1e6,v:()=>save.st.earned,r:100000}
+  {k:'e6',de:'Millionär',en:'Millionaire',dd:'Verdiene insgesamt 1.000.000 ◈.',ed:'Earn 1,000,000 ◈ in total.',g:1e6,v:()=>save.st.earned,r:100000},
+  {k:'pres',de:'Neuanfang',en:'Fresh start',dd:'Mach deinen ersten Meisterbrief.',ed:'Earn your first master\'s certificate.',g:1,v:()=>save.pres,r:5000},
+  {k:'ord10',de:'Stammkundschaft',en:'Regulars',dd:'Erfülle 10 Kundenaufträge.',ed:'Fill 10 customer orders.',g:10,v:()=>save.st.orders||0,r:3000}
 ];
 function achDot(){$('tab-vitrine').classList.toggle('dot',ACH.some(a=>save.ach[a.k]===1))}
 function checkAch(silent){let n=0;for(const a of ACH)if(!save.ach[a.k]&&a.v()>=a.g){save.ach[a.k]=1;n++;if(!silent)banner(T(a.de,a.en),T('Erfolg freigeschaltet','Achievement unlocked'),'rare')}
@@ -657,13 +725,16 @@ const cur=()=>rounds[view]||null;
 
 function buildDaily(){const key=dayKey(),st=makeStone(seedOf(key)),R=newRound('daily',st,st.gem.length,0);R.key=key;rounds.daily=R;
   const d=save.days[key];
-  if(d){R.gem=d.p;R.rock=d.p;R.cracks=d.c;R.cutsLeft=R.cutsMax-d.u;R.done=true;R.fin=9;R.final=d.s;R.shown=d.s;R.panel=true}
+  if(d){R.stone=Object.assign({},st,{ti:d.t,type:TYPES[d.t]||st.type,ct:d.ct||st.ct});R.gem=d.p;R.rock=d.p;R.cracks=d.c;R.cutsLeft=R.cutsMax-d.u;R.done=true;R.fin=9;R.final=d.s;R.shown=d.s;R.panel=true}
   else if(save.cur&&save.cur.day===key){for(const c of save.cur.cuts)applyCut(R,[c[0],c[1]],[c[2],c[3]]);R.shown=score(R);if(R.cutsLeft<=0)finish(R,true)}}
 function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine()}
-function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(9,5+Math.floor((L-1)/3)),cuts=Math.max(4,sides-Math.floor(L/6))+save.up.cut;
-  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides,sh),cuts,0);
+function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(9,5+Math.floor((L-1)/3));let cuts=Math.max(4,sides-Math.floor(L/6))+save.up.cut;
+  const seed=Math.random()*4294967296>>>0,rushRoll=Math.random();
+  /* Sonderform: ab dem dritten Stein, jeder vierte */
+  const shape=L>=3&&Math.random()<.25?['round','needle','tiny'][Math.floor(Math.random()*3)]:null;if(shape==='round')cuts=Math.max(cuts,6);
+  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(seed,sides,sh,shape),cuts,0);R.shape=shape;
   /* Zeitstein: selten, nie zweimal hintereinander, nie als erster Stein der Schicht */
-  if(mine.level>=2&&!mine.lastRush&&Math.random()<RUSH_P){R.rush=true;R.time=R.timeMax=4+cuts*.9;R.grace=1.9}
+  if(mine.level>=2&&!mine.lastRush&&rushRoll<RUSH_P){R.rush=true;R.time=R.timeMax=4+cuts*.9;R.grace=1.9}
   mine.lastRush=!!R.rush}
 /* Zeitstein: nur wenige Sekunden. Zeit um, Riss oder zu unrein = verloren, keine Belohnung. Geschafft = achtfacher Preis. */
 const RUSH_P=.14,RUSH_X=8,RUSH_MIN=60;
@@ -673,7 +744,7 @@ function rushHud(R){const e=$('rush');if(e.hidden)e.hidden=false;const t=fmt(Mat
 function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round(score(R)*10)/10;const gi=gradeIdx(R.final);
   if(R.mode==='daily'){save.days[R.key]={s:R.final,c:R.cracks,u:R.cutsMax-R.cutsLeft,t:R.stone.ti,ct:R.stone.ct,p:flat(R.gem)};save.cur=null;
     R.pay=Math.round(price(R.stone,R.final,save.shaft,false)*DAILY_X*streakBonus());save.days[R.key].m=R.pay;save.money+=R.pay;persist()}
-  else{const base=price(R.stone,R.final,mine.shaft,true);
+  else{const base=Math.round(price(R.stone,R.final,mine.shaft,true)*(R.shape?SHAPES[R.shape].x:1));
     if(R.rush){R.won=!R.failed&&R.final>=RUSH_MIN;if(!R.won&&!R.failed)R.failed='low';R.pay=R.won?base*RUSH_X:0;if(!R.won){R.gone=true;R.crackLines=[]}}
     else{R.pay=base;if(R.final<50){mine.lives--;R.lost=true}}
     save.money+=R.pay;mine.score+=R.pay;if(mine.lives<=0)mine.over=true;
@@ -681,11 +752,12 @@ function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round
   const rushLost=R.rush&&!R.won;
   {const st=save.st;if(!rushLost){const rec=st.types[R.stone.ti]||(st.types[R.stone.ti]={n:0,b:0});rec.n++;rec.b=Math.max(rec.b,R.final);st.stones++;if(R.final>=97)st.fl++}
     if(R.won)st.rush++;st.earned+=R.pay||0;persist()}
+  const jobBanners=rushLost?[]:jobsStone(R);
   if(quiet||rushLost)checkAch(quiet);
   if(quiet)showMoney();
   else if(rushLost){const why=R.failed;sfxCrack();sfxFail();if(!reduce)shake=.08;burst(R,80);flash('var(--crack)');buzz([60,40,120]);
     banner(why==='time'?T('Zeit um!','Time up!'):why==='crack'?T('Zerbrochen!','Shattered!'):T('Zu unrein!','Not pure enough!'),T('Zeitstein verloren','Rush stone lost'),'bad')}
-  else{const tr=tier(R.stone.type),daily=R.mode==='daily',ratio=R.pay/(58*SHAFTS[daily?save.shaft:mine.shaft].mult);
+  else{const tr=tier(R.stone.type),daily=R.mode==='daily',ratio=R.pay/(58*pm()*SHAFTS[daily?save.shaft:mine.shaft].mult);
     const jack=R.won||(R.final>=50&&(ratio>=20||tr===4||(tr===3&&gi<=1)||(daily&&gi<=1))),big=jack||ratio>=5||gi===0||daily;
     moneyHold=Date.now()+1500;
     setTimeout(()=>{if(R===cur()){coins(jack?40:big?20:7,gemScreen());sfxCoins(jack?14:big?9:4)}
@@ -693,7 +765,7 @@ function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round
       else if(jack){banner(T('Volltreffer!','Jackpot!'),'+'+fmtM(R.pay),'gold');flash('var(--brass)');confetti(90);sfxJackpot()}
       else if(gi===0)banner(T('Lupenrein!','Flawless!'),'+'+fmtM(R.pay),'gold');
       else if(big&&R.final>=50)banner('+'+fmtM(R.pay),daily?T('Tagesstein','Daily stone'):T('Guter Verkauf','Nice sale'),'gold')},900);
-    setTimeout(()=>{moneyHold=0;showMoney();checkMiles();checkAch()},1550)}
+    setTimeout(()=>{moneyHold=0;showMoney();for(const b of jobBanners)banner(b[0],b[1],'rare');if(jobBanners.length)sfxBuy();checkMiles();checkAch()},1550)}
   if(!quiet){if(!rushLost){sfxWin(gi);buzz(gi<2?[20,40,20,40,60]:25)}crumble(R)}
   setTimeout(()=>{R.panel=true;if(R===cur())showPanel(R)},quiet?0:900);
   refreshHud()}
@@ -757,7 +829,7 @@ function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t)
   if(R.rush)$('rushL').textContent=T(`mindestens ${RUSH_MIN} % · kein Riss · Preis ×${RUSH_X}`,`at least ${RUSH_MIN}% · no cracks · price ×${RUSH_X}`);
   let pips='';for(let i=0;i<5;i++)pips+=`<i class="${i<=tr?'':'e'}"></i>`;
   const rar=$('rar');rar.className='rar t'+tr;rar.innerHTML=`<span class="pips">${pips}</span>${TIER[tr]}`;rar.hidden=R.done;
-  $('stoneInfo').innerHTML=(R.mode==='daily'?`${T('Tag','Day')} ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · ${T('Stufe','Level')} ${mine.level}`)+` · <b class="tc t${tr}">${t.n}</b> · ${fmt(R.stone.ct)} ct`;
+  $('stoneInfo').innerHTML=(R.mode==='daily'?`${T('Tag','Day')} ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · ${T('Stufe','Level')} ${mine.level}`)+` · <b class="tc t${tr}">${t.n}</b> · ${fmt(R.stone.ct)} ct`+(R.shape?` · <b>${T(SHAPES[R.shape].de,SHAPES[R.shape].en)} ×${fmt(SHAPES[R.shape].x)}</b>`:'');
   if(R.mode==='daily'){const s=streak();$('runInfo').textContent=R.done?(s?T(`Serie ${s} ${s===1?'Tag':'Tage'}`,`Streak ${s} ${s===1?'day':'days'}`):''):T(`Ein Versuch · zahlt ×${DAILY_X}`,`One try · pays ×${DAILY_X}`)}
   else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` ${T('Schicht','Shift')} ${fmtM(mine.score)}`}
   showMoney();
@@ -804,6 +876,7 @@ function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cu
 function countdown(){const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1),s=Math.max(0,Math.floor((m-n)/1000)),p=v=>String(v).padStart(2,'0');
   return p(Math.floor(s/3600))+':'+p(Math.floor(s/60)%60)+':'+p(s%60)}
 setInterval(()=>{const e=$('cd');if(e)e.textContent=countdown();accrue();updateCollect();
+  if(view==='jobs'){if(save.dq&&save.dq.day!==dayKey())renderJobs();else{const c=$('dqCd');if(c)c.textContent=countdown()}}
   if(rounds.daily&&rounds.daily.key!==dayKey()){buildDaily();if(view==='daily'){panel.hidden=true;const R=cur();if(R.panel)showPanel(R);refreshHud()}}},1000);
 
 /* ---------- Vitrine ---------- */
@@ -975,7 +1048,8 @@ function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
 
 /* ---------- Ansichten ---------- */
 function setView(v){view=v;for(const b of document.querySelectorAll('.tabs button'))b.setAttribute('aria-selected',b.dataset.view===v?'true':'false');
-  $('playView').hidden=v==='vitrine'||v==='shop'||v==='menu';$('vitrineView').hidden=v!=='vitrine';$('shopView').hidden=v!=='shop';$('menuView').hidden=v!=='menu';
+  $('playView').hidden=v==='vitrine'||v==='shop'||v==='menu';$('vitrineView').hidden=v!=='vitrine';$('shopView').hidden=v!=='shop';$('menuView').hidden=v!=='menu';$('jobsView').hidden=v!=='jobs';
+  if(v==='jobs'){$('playView').hidden=true;renderJobs();return}
   if(v==='menu'){$('saveMsg').textContent='';$('saveTxt').hidden=true;return}
   if(v==='vitrine'){checkAch(true);renderVitrine();return}
   if(v==='shop'){renderShop();return}
@@ -999,7 +1073,20 @@ function renderShop(){showMoney();
   $('idleInfo').innerHTML=r?T(`Deine Lehrlinge verdienen <b>${fmtM(r)} pro Stunde</b>, auch wenn das Spiel zu ist. Das Lager fasst ${idleHours()} Stunden, also ${fmtM(idleCap())}. Jeder tiefere Schacht erhöht den Verdienst.`,
       `Your apprentices earn <b>${fmtM(r)} per hour</b>, even while the game is closed. Storage holds ${idleHours()} hours, so ${fmtM(idleCap())}. Every deeper shaft raises the income.`)
     :T('Noch keine Lehrlinge. Stell welche ein, dann verdienst du Geld, auch wenn du nicht spielst.','No apprentices yet. Hire some and you earn money even while you are not playing.');
+  /* Meisterbrief */
+  const g=presGain(),n=save.pres,pb=$('presBtn');
+  $('presInfo').innerHTML=(n?T(`Du hast <b>${n} ${n===1?'Meisterbrief':'Meisterbriefe'}</b>: Preise, Lehrlinge und Aufträge ×${fmt(pm())}. `,`You hold <b>${n} ${n===1?'certificate':'certificates'}</b>: prices, apprentices and orders ×${fmt(pm())}. `):'')
+    +(g?T(`Fang neu an und bekomme <b>+${g}</b>. Jeder Meisterbrief gibt dauerhaft +50 %. Du gibst Geld, Schächte, Hilfsmittel und Werkstatt ab. Steine, Sammlung, Erfolge und Serie bleiben.`,
+          `Start over and get <b>+${g}</b>. Each certificate gives +50% for good. You give up money, shafts, tools and workshop. Stones, collection, achievements and streak stay.`)
+       :T('Erreiche Schacht 3, dann kannst du neu anfangen und bekommst dafür einen Meisterbrief: dauerhaft +50 % auf alle Preise.','Reach Shaft 3, then you can start over and get a certificate for it: +50% on all prices for good.'));
+  pb.disabled=!g;if(Date.now()>=presArm){pb.classList.remove('armed');pb.textContent=g?T(`Neu anfangen (+${g} Meisterbrief)`,`Start over (+${g} certificate)`):T('Noch nicht möglich','Not available yet')}
   updateCollect()}
+const presGain=()=>Math.max(0,save.shaft-1);
+let presArm=0;
+$('presBtn').addEventListener('click',()=>{const g=presGain(),b=$('presBtn');if(!g)return;
+  if(Date.now()<presArm){presArm=0;save.pres+=g;save.money=0;save.shaft=0;save.sel=0;save.bank=0;for(const k in save.up)save.up[k]=0;rounds.mine=null;persist();audio();sfxLegend();
+    confetti(120);flash('var(--brass)');banner(T('Meisterbrief!','Certificate!'),T(`Alle Preise ×${fmt(pm())}`,`All prices ×${fmt(pm())}`),'gold big');moneyShown=-1;renderShop();checkAch();return}
+  presArm=Date.now()+5000;b.classList.add('armed');b.textContent=T('Wirklich neu anfangen?','Really start over?');setTimeout(()=>{if(view==='shop'&&Date.now()>=presArm)renderShop()},5200)});
 function updateCollect(){const b=Math.floor(save.bank),e=$('collect');e.hidden=b<1;if(b>=1){e.textContent=`+${fmtInt(b)} ◈`;e.classList.toggle('full',save.bank>=idleCap()-.5);
     e.title=save.bank>=idleCap()-.5?T('Lager voll. Einsammeln.','Storage full. Collect.'):T('Verdienst der Lehrlinge einsammeln.','Collect what your apprentices earned.')}}
 function collect(){accrue();const n=Math.floor(save.bank);if(n<1)return;const cr=$('collect').getBoundingClientRect();save.bank-=n;save.money+=n;save.st.earned+=n;persist();audio();sfxBuy();setTimeout(checkAch,900);
@@ -1045,6 +1132,7 @@ $('introMine').addEventListener('click',()=>closeIntro('mine'));
     $('backTxt').innerHTML=T(`Du warst ${fmtDur(away)} weg. Im Lager liegen <b>${fmtM(n)}</b> von deinen Lehrlingen.`+(full?' Das Lager ist voll. Ein größeres Lager fasst mehr.':''),
       `You were away for ${fmtDur(away)}. Your apprentices left <b>${fmtM(n)}</b> in storage.`+(full?' Storage is full. A bigger one holds more.':''));
     $('back').hidden=false}}
+ensureJobs();persist();
 buildDaily();sndLabel();updateCollect();checkAch(true);
 if(!save.seen&&!rounds.daily.done)$('intro').hidden=false;
 setView('daily');

@@ -10,6 +10,9 @@ Live: https://dashslashtod-wq.github.io/schliff/
 - **Mine:** endlos Steine, 3 Leben. Jeder Stein wird verkauft.
 - **Seltenheit:** gewöhnlich, ungewöhnlich, selten, episch, legendär.
 - **Zeitstein:** wenige Sekunden, achtfacher Preis oder nichts.
+- **Sonderformen:** Rundschliff, Nadel, Winzling. Schwerer, dafür teurer.
+- **Aufträge:** drei Tagesaufgaben (für alle gleich) und drei laufende Kundenaufträge.
+- **Meisterbrief:** ab Schacht 3 neu anfangen für dauerhaft +50 % pro Brief.
 - **Laden:** Schächte, Hilfsmittel, Werkstatt (Lehrlinge verdienen auch offline).
 - **Vitrine:** Tagessteine, Sammlung aller Steinarten, Erfolge mit Belohnung.
 - **Menü:** Musik, Geräusche, Sprache (Deutsch/Englisch), Anleitung, Spielstand sichern, laden, löschen.
