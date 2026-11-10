@@ -84,8 +84,25 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .rare.t2{background:var(--r2)}
 .rare.t3{background:var(--r3)}
 .rare.t4{background:var(--brass);color:var(--brass-ink);animation:nudge 1.4s ease-in-out infinite}
-.bench.epic{box-shadow:inset 0 0 0 3px var(--r3)}
-.bench.legend{animation:legend 1.6s ease-in-out infinite}
+.t0{--rc:var(--r0)}
+.t1{--rc:var(--r1)}
+.t2{--rc:var(--r2)}
+.t3{--rc:var(--r3)}
+.t4{--rc:var(--brass)}
+.hud-top b.tc{color:var(--rc)}
+.bench.t0{box-shadow:inset 0 0 0 2px var(--line)}
+.bench.t1,.bench.t2{box-shadow:inset 0 0 0 3px var(--rc)}
+.bench.t3{box-shadow:inset 0 0 0 4px var(--rc),inset 0 0 50px rgba(201,160,255,.22)}
+.bench.t4{box-shadow:inset 0 0 0 4px var(--brass),inset 0 0 50px rgba(255,201,77,.3)}
+.bench.t4:not(.done){animation:legend 1.6s ease-in-out infinite}
+.rar{position:absolute;top:12px;left:0;right:0;margin-inline:auto;width:fit-content;max-width:calc(100% - 24px);z-index:2;display:flex;align-items:center;gap:9px;padding:5px 16px 5px 12px;border-radius:999px;
+  background:var(--rc);color:var(--shade);font-family:var(--f-display);font-weight:700;font-size:1.1rem;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;
+  pointer-events:none;box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.rar.t3,.rar.t4{font-size:1.25rem}
+.rar.t4{animation:nudge 1.4s ease-in-out infinite}
+.rar .pips{display:flex;gap:4px}
+.rar .pips i{width:10px;height:10px;transform:rotate(45deg);border-radius:2px;background:var(--shade)}
+.rar .pips i.e{background:none;box-shadow:inset 0 0 0 2px rgba(20,25,50,.4)}
 @keyframes legend{0%,100%{box-shadow:inset 0 0 0 3px var(--brass),inset 0 0 40px rgba(255,201,77,.25)}50%{box-shadow:inset 0 0 0 5px var(--brass),inset 0 0 90px rgba(255,201,77,.5)}}
 .slot.r1{border-color:var(--r1)}
 .slot.r2{border-color:var(--r2)}
@@ -99,7 +116,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .bench{position:relative;flex:1;min-height:0;border-radius:24px;overflow:hidden;
   background:radial-gradient(62% 56% at 50% 44%,var(--lamp),transparent 72%)}
 #cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;display:block}
-.hint{position:absolute;top:10px;left:12px;right:12px;margin:0;text-align:center;font-size:.95rem;font-weight:700;color:var(--ink-dim);pointer-events:none;text-wrap:balance}
+.hint{position:absolute;top:56px;left:12px;right:12px;margin:0;text-align:center;font-size:.95rem;font-weight:700;color:var(--ink-dim);pointer-events:none;text-wrap:balance}
 .hint.warn{color:var(--crack)}
 
 .panel,.intro{position:absolute;left:50%;transform:translateX(-50%);width:min(430px,calc(100% - 20px));
@@ -188,7 +205,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .banner.rare b{color:var(--mint)}
 .banner.show{animation:bannerIn 1.9s cubic-bezier(.2,1.3,.4,1) both}
 @keyframes bannerIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}22%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
-@media (prefers-reduced-motion:reduce){.panel,.money.pop,.collect.full,.rare.t4,.flash.go,.banner.show{animation:none}}
+@media (prefers-reduced-motion:reduce){.panel,.money.pop,.collect.full,.rare.t4,.rar.t4,.bench.t4:not(.done),.flash.go,.banner.show{animation:none}}
 </style>
 
 <div class="app">
@@ -215,6 +232,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     <div class="hud-top"><div id="stoneInfo"></div><div id="runInfo"></div></div>
     <div class="bench" id="bench">
       <canvas id="cv" aria-label="Stein auf der Werkbank. Zum Schneiden quer über den Stein wischen."></canvas>
+      <div class="rar" id="rar" hidden></div>
       <p class="hint" id="hint"></p>
       <div class="panel" id="panel" hidden></div>
       <div class="intro" id="back" hidden>
@@ -610,9 +628,12 @@ cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;d.b=p
 $('doneBtn').addEventListener('click',()=>{const R=cur();if(R&&!R.done&&R.hist.length){audio();finish(R)}});
 
 /* ---------- HUD ---------- */
-function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t),rare=`<span class="rare t${tr}">${TIER[tr]}</span>`;
-  bench.classList.toggle('epic',tr===3&&!R.done);bench.classList.toggle('legend',tr===4&&!R.done);
-  $('stoneInfo').innerHTML=(R.mode==='daily'?`${T('Tag','Day')} ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · ${T('Stufe','Level')} ${mine.level}`)+` · <b>${t.n}</b> · ${fmt(R.stone.ct)} ct`+rare;
+function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t);
+  /* Seltenheit: Rahmen der Werkbank, großes Schild mit 1–5 Rauten, Steinname in der Stufenfarbe */
+  bench.className='bench t'+tr+(R.done?' done':'');
+  let pips='';for(let i=0;i<5;i++)pips+=`<i class="${i<=tr?'':'e'}"></i>`;
+  const rar=$('rar');rar.className='rar t'+tr;rar.innerHTML=`<span class="pips">${pips}</span>${TIER[tr]}`;rar.hidden=R.done;
+  $('stoneInfo').innerHTML=(R.mode==='daily'?`${T('Tag','Day')} ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · ${T('Stufe','Level')} ${mine.level}`)+` · <b class="tc t${tr}">${t.n}</b> · ${fmt(R.stone.ct)} ct`;
   if(R.mode==='daily'){const s=streak();$('runInfo').textContent=R.done?(s?T(`Serie ${s} ${s===1?'Tag':'Tage'}`,`Streak ${s} ${s===1?'day':'days'}`):''):T(`Ein Versuch · zahlt ×${DAILY_X}`,`One try · pays ×${DAILY_X}`)}
   else{let l='';for(let i=0;i<3;i++)l+=`<span class="life${i<mine.lives?'':' off'}">◆</span>`;$('runInfo').innerHTML=l+` ${T('Schicht','Shift')} ${fmtM(mine.score)}`}
   showMoney();
@@ -705,7 +726,9 @@ function draw(R){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);if(!R)
   V.S=S;V.cx=W/2;V.cy=H/2-(ph/2)*e+10*(1-e);
   const sx=shake?(Math.random()-.5)*shake*S:0,sy=shake?(Math.random()-.5)*shake*S:0;
   ctx.translate(V.cx+sx,V.cy+sy);ctx.scale(S,S);ctx.lineWidth=1.3/S;ctx.lineJoin='round';
-  const trr=tier(t);
+  const trr=tier(t),tcol=['#9aa2c7','#6fe3b4','#9cc2ff','#c9a0ff','#ffc94d'][trr];
+  /* Schein in der Stufenfarbe hinter dem Stein */
+  if(trr>=1){const g=ctx.createRadialGradient(0,0,.55,0,0,1.6);g.addColorStop(0,tcol+(trr>=3?'66':'44'));g.addColorStop(1,tcol+'00');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,1.6,0,TAU);ctx.fill()}
   if(trr>=3&&!reduce){const L=trr===4,hh=L?46:t.h,ss=L?95:t.s,ray=(rot,n,al,len)=>{ctx.save();ctx.rotate(rot);const w=TAU/n*.28,g=ctx.createRadialGradient(0,0,.15,0,0,len);
       g.addColorStop(0,`hsl(${hh} ${ss}% 76% / ${al})`);g.addColorStop(1,`hsl(${hh} ${ss}% 76% / 0)`);ctx.fillStyle=g;
       for(let i=0;i<n;i++){const a=i/n*TAU;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,len,a-w,a+w);ctx.closePath();ctx.fill()}ctx.restore()};
@@ -718,7 +741,9 @@ function draw(R){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);if(!R)
   ctx.save();ctx.rotate(R.rot);
   if(R.done){const gs=1+.55*e,c=centroid(R.gem);ctx.scale(gs,gs);ctx.translate(-c[0]*e,-c[1]*e);ctx.lineWidth=1.3/S/gs}
   const ra=R.done?1-ease(R.fin/.7):1;
-  if(ra>.01){ctx.globalAlpha=ra;drawRock(R.rock,R.rot);ctx.globalAlpha=1}
+  if(ra>.01){ctx.globalAlpha=ra;drawRock(R.rock,R.rot);
+    if(trr>=1){const lw=ctx.lineWidth;ctx.strokeStyle=tcol;ctx.lineWidth=lw*(trr>=3?3.2:2.4);poly(R.rock);ctx.stroke();ctx.lineWidth=lw}
+    ctx.globalAlpha=1}
   drawGem(R.gem,t,R.rot,R.done?26:12+4*Math.sin(R.t*2.2));
   ctx.lineCap='round';
   for(const c of R.crackLines){const k=onLine(R.gem,c[0],[-(c[1][1]-c[0][1]),c[1][0]-c[0][0]]);if(k.length<2)continue;const a=k[0],b=k[k.length-1];
