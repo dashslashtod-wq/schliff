@@ -109,6 +109,16 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .slot.r3{border-color:var(--r3)}
 .slot.r4{border-color:var(--brass)}
 .banner.epic b{color:var(--r3)}
+.banner.bad b{color:var(--crack)}
+.rush{position:absolute;top:58px;left:0;right:0;margin-inline:auto;width:min(300px,calc(100% - 24px));z-index:2;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 10px;pointer-events:none}
+.rush b{font-family:var(--f-num);font-weight:700;font-size:1.7rem;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;min-width:3.4ch;text-align:right}
+.rush .bar{height:12px;border-radius:999px;background:var(--shade);overflow:hidden}
+.rush .bar i{display:block;height:100%;width:100%;border-radius:999px;background:var(--mint)}
+.rush small{grid-column:1/-1;text-align:center;font-weight:800;font-size:.8rem;color:var(--ink)}
+.rush.low b{color:var(--crack)}
+.rush.low .bar i{background:var(--crack)}
+.bench.hurry:not(.done){box-shadow:inset 0 0 0 5px var(--crack);animation:hurry .7s ease-in-out infinite}
+@keyframes hurry{0%,100%{box-shadow:inset 0 0 0 4px var(--crack)}50%{box-shadow:inset 0 0 0 7px var(--crack),inset 0 0 60px rgba(255,122,107,.35)}}
 .banner.big b{font-size:clamp(2.6rem,12vw,4.8rem)}
 #runInfo{font-family:var(--f-num);font-weight:500}
 .life{color:var(--crack)}.life.off{color:var(--line)}
@@ -205,7 +215,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .banner.rare b{color:var(--mint)}
 .banner.show{animation:bannerIn 1.9s cubic-bezier(.2,1.3,.4,1) both}
 @keyframes bannerIn{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}12%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}22%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
-@media (prefers-reduced-motion:reduce){.panel,.money.pop,.collect.full,.rare.t4,.rar.t4,.bench.t4:not(.done),.flash.go,.banner.show{animation:none}}
+@media (prefers-reduced-motion:reduce){.panel,.money.pop,.collect.full,.rare.t4,.rar.t4,.bench.t4:not(.done),.bench.hurry:not(.done),.flash.go,.banner.show{animation:none}}
 </style>
 
 <div class="app">
@@ -233,6 +243,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     <div class="bench" id="bench">
       <canvas id="cv" aria-label="Stein auf der Werkbank. Zum Schneiden quer über den Stein wischen."></canvas>
       <div class="rar" id="rar" hidden></div>
+      <div class="rush" id="rush" hidden><b id="rushT"></b><span class="bar"><i id="rushBar"></i></span><small id="rushL"></small></div>
       <p class="hint" id="hint"></p>
       <div class="panel" id="panel" hidden></div>
       <div class="intro" id="back" hidden>
@@ -508,6 +519,9 @@ function noise(c,t,dur,ftype,f1,f2,peak){const b=c.createBuffer(1,Math.ceil(c.sa
   const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;f.type=ftype;f.Q.value=1.1;f.frequency.setValueAtTime(f1,t);f.frequency.exponentialRampToValueAtTime(f2,t+dur);
   env(g,t,.004,dur-.01,peak);s.connect(f).connect(g).connect(c.destination);s.start(t)}
 function sfxCut(k){const c=audio();if(!c)return;const t=c.currentTime;noise(c,t,.24,'bandpass',2600+k*250,650,.5);tone(c,'sine',95,t,.003,.13,.5,55);tone(c,'triangle',523*Math.pow(1.1225,k),t+.02,.005,.22,.2)}
+function sfxTick(){const c=audio();if(!c)return;tone(c,'square',880,c.currentTime,.002,.06,.08)}
+function sfxAlarm(){const c=audio();if(!c)return;const t=c.currentTime;for(let i=0;i<4;i++)tone(c,'square',i%2?660:880,t+i*.11,.004,.09,.1)}
+function sfxFail(){const c=audio();if(!c)return;tone(c,'sawtooth',300,c.currentTime,.01,.5,.16,70)}
 function sfxCrack(){const c=audio();if(!c)return;const t=c.currentTime;noise(c,t,.32,'highpass',3200,5200,.45);tone(c,'square',196,t,.003,.22,.12,110);tone(c,'square',208,t,.003,.2,.1,123)}
 function sfxMiss(){const c=audio();if(!c)return;tone(c,'sine',210,c.currentTime,.004,.13,.14,120)}
 function sfxWin(gi){const c=audio();if(!c)return;const t=c.currentTime+.25,N=[523.25,659.25,783.99,1046.5,1318.5],k=Math.max(1,5-gi);
@@ -560,23 +574,37 @@ function buildDaily(){const key=dayKey(),st=makeStone(seedOf(key)),R=newRound('d
   else if(save.cur&&save.cur.day===key){for(const c of save.cur.cuts)applyCut(R,[c[0],c[1]],[c[2],c[3]]);R.shown=score(R);if(R.cutsLeft<=0)finish(R,true)}}
 function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine()}
 function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(9,5+Math.floor((L-1)/3)),cuts=Math.max(4,sides-Math.floor(L/6))+save.up.cut;
-  mine.shaft=sh;rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides,sh),cuts,0)}
+  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(Math.random()*4294967296>>>0,sides,sh),cuts,0);
+  /* Zeitstein: selten, nie zweimal hintereinander, nie als erster Stein der Schicht */
+  if(mine.level>=2&&!mine.lastRush&&Math.random()<RUSH_P){R.rush=true;R.time=R.timeMax=4+cuts*.9;R.grace=1.9}
+  mine.lastRush=!!R.rush}
+/* Zeitstein: nur wenige Sekunden. Zeit um, Riss oder zu unrein = verloren, keine Belohnung. Geschafft = achtfacher Preis. */
+const RUSH_P=.14,RUSH_X=8,RUSH_MIN=60;
+function rushHud(R){const e=$('rush');if(e.hidden)e.hidden=false;const t=fmt(Math.max(0,R.time));if($('rushT').textContent!==t)$('rushT').textContent=t;
+  $('rushBar').style.width=Math.max(0,100*R.time/R.timeMax)+'%';e.classList.toggle('low',R.time<=3)}
 
 function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round(score(R)*10)/10;const gi=gradeIdx(R.final);
   if(R.mode==='daily'){save.days[R.key]={s:R.final,c:R.cracks,u:R.cutsMax-R.cutsLeft,t:R.stone.ti,ct:R.stone.ct,p:flat(R.gem)};save.cur=null;
     R.pay=Math.round(price(R.stone,R.final,save.shaft,false)*DAILY_X*streakBonus());save.days[R.key].m=R.pay;save.money+=R.pay;persist()}
-  else{R.pay=price(R.stone,R.final,mine.shaft,true);save.money+=R.pay;mine.score+=R.pay;if(R.final<50){mine.lives--;R.lost=true}if(mine.lives<=0)mine.over=true;
+  else{const base=price(R.stone,R.final,mine.shaft,true);
+    if(R.rush){R.won=!R.failed&&R.final>=RUSH_MIN;if(!R.won&&!R.failed)R.failed='low';R.pay=R.won?base*RUSH_X:0;if(!R.won){R.gone=true;R.crackLines=[]}}
+    else{R.pay=base;if(R.final<50){mine.lives--;R.lost=true}}
+    save.money+=R.pay;mine.score+=R.pay;if(mine.lives<=0)mine.over=true;
     if(mine.score>save.best){save.best=mine.score;mine.record=true}persist()}
+  const rushLost=R.rush&&!R.won;
   if(quiet)showMoney();
+  else if(rushLost){const why=R.failed;sfxCrack();sfxFail();if(!reduce)shake=.08;burst(R,80);flash('var(--crack)');buzz([60,40,120]);
+    banner(why==='time'?T('Zeit um!','Time up!'):why==='crack'?T('Zerbrochen!','Shattered!'):T('Zu unrein!','Not pure enough!'),T('Zeitstein verloren','Rush stone lost'),'bad')}
   else{const tr=tier(R.stone.type),daily=R.mode==='daily',ratio=R.pay/(58*SHAFTS[daily?save.shaft:mine.shaft].mult);
-    const jack=R.final>=50&&(ratio>=20||tr===4||(tr===3&&gi<=1)||(daily&&gi<=1)),big=jack||ratio>=5||gi===0||daily;
+    const jack=R.won||(R.final>=50&&(ratio>=20||tr===4||(tr===3&&gi<=1)||(daily&&gi<=1))),big=jack||ratio>=5||gi===0||daily;
     moneyHold=Date.now()+1500;
     setTimeout(()=>{if(R===cur()){coins(jack?40:big?20:7,gemScreen());sfxCoins(jack?14:big?9:4)}
-      if(jack){banner(T('Volltreffer!','Jackpot!'),'+'+fmtM(R.pay),'gold');flash('var(--brass)');confetti(90);sfxJackpot()}
+      if(R.won){banner(T('Geschafft!','Made it!'),'+'+fmtM(R.pay)+' · ×'+RUSH_X,'gold');flash('var(--brass)');confetti(110);sfxJackpot()}
+      else if(jack){banner(T('Volltreffer!','Jackpot!'),'+'+fmtM(R.pay),'gold');flash('var(--brass)');confetti(90);sfxJackpot()}
       else if(gi===0)banner(T('Lupenrein!','Flawless!'),'+'+fmtM(R.pay),'gold');
       else if(big&&R.final>=50)banner('+'+fmtM(R.pay),daily?T('Tagesstein','Daily stone'):T('Guter Verkauf','Nice sale'),'gold')},900);
     setTimeout(()=>{moneyHold=0;showMoney();checkMiles()},1550)}
-  if(!quiet){sfxWin(gi);crumble(R);buzz(gi<2?[20,40,20,40,60]:25)}
+  if(!quiet){if(!rushLost){sfxWin(gi);buzz(gi<2?[20,40,20,40,60]:25)}crumble(R)}
   setTimeout(()=>{R.panel=true;if(R===cur())showPanel(R)},quiet?0:900);
   refreshHud()}
 
@@ -596,7 +624,10 @@ function floatTxt(p,txt,color){floats.push({x:p[0],y:p[1],txt,color,life:1.2,max
 function burst(R,n){if(reduce)return;const c=toWorld(centroid(R.gem),R.rot),t=R.stone.type;
   for(let i=0;i<n;i++){const a=Math.random()*TAU,sp=.5+Math.random()*1.6;spawn(c[0],c[1],Math.cos(a)*sp,Math.sin(a)*sp-.6,i%3?gemColor(t,Math.random(),i):'#fff8ea',.014+Math.random()*.03,.7+Math.random()*.8)}}
 /* Besonderer Stein: beim ersten Zeigen ankündigen */
-function announce(R){if(!R||R.announced||R.done||R.hist.length)return;R.announced=true;const t=R.stone.type,tr=tier(t);if(tr<2)return;
+function announce(R){if(!R||R.announced||R.done||R.hist.length)return;R.announced=true;const t=R.stone.type,tr=tier(t);
+  if(R.rush){const s=Math.round(R.timeMax);sfxAlarm();burst(R,24);flash('var(--crack)');buzz([30,30,30,30,30]);
+    banner(T('Zeitstein!','Rush stone!'),T(`${RUSH_MIN} % in ${s} s · ×${RUSH_X}`,`${RUSH_MIN}% in ${s}s · ×${RUSH_X}`),'bad');return}
+  if(tr<2)return;
   if(tr===2){sfxRare(1);burst(R,16);return}
   /* Episch: kleiner Effekt */
   if(tr===3){sfxRare(2);burst(R,45);banner(t.n+'!',TIERSUB[3],'epic');flash('var(--r3)');buzz([20,40,40]);return}
@@ -623,6 +654,7 @@ cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;d.b=p
     else if(gain>=.05)floatTxt(mid,(gain>=12?T('Sauber! ','Clean! '):'')+'+'+fmt(gain)+T(' %','%'),gain>=12?'#6fe3b4':'#ffe6a3')}
   if(res.hit){sfxCrack();buzz([30,40,60]);hintWarn=2;hint.textContent=res.saved?T('Riss im Juwel. Die Versicherung zahlt, kein Punktabzug.','You cracked the gem. Insurance pays, no points lost.'):T('Riss im Juwel. 4 Punkte Abzug.','You cracked the gem. 4 points lost.');hint.className='hint warn'}
   else{sfxCut(R.cutsMax-R.cutsLeft-1);buzz(12)}
+  if(R.rush&&res.hit&&!res.saved){R.failed='crack';hintWarn=0;hint.textContent='';finish(R);return}
   refreshHud();
   if(R.cutsLeft<=0)setTimeout(()=>finish(R),480)});
 $('doneBtn').addEventListener('click',()=>{const R=cur();if(R&&!R.done&&R.hist.length){audio();finish(R)}});
@@ -630,7 +662,9 @@ $('doneBtn').addEventListener('click',()=>{const R=cur();if(R&&!R.done&&R.hist.l
 /* ---------- HUD ---------- */
 function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t);
   /* Seltenheit: Rahmen der Werkbank, großes Schild mit 1–5 Rauten, Steinname in der Stufenfarbe */
-  bench.className='bench t'+tr+(R.done?' done':'');
+  bench.className='bench t'+tr+(R.done?' done':'')+(R.rush?' hurry':'');
+  $('rush').hidden=!(R.rush&&!R.done);
+  if(R.rush)$('rushL').textContent=T(`mindestens ${RUSH_MIN} % · kein Riss · Preis ×${RUSH_X}`,`at least ${RUSH_MIN}% · no cracks · price ×${RUSH_X}`);
   let pips='';for(let i=0;i<5;i++)pips+=`<i class="${i<=tr?'':'e'}"></i>`;
   const rar=$('rar');rar.className='rar t'+tr;rar.innerHTML=`<span class="pips">${pips}</span>${TIER[tr]}`;rar.hidden=R.done;
   $('stoneInfo').innerHTML=(R.mode==='daily'?`${T('Tag','Day')} ${dayNo(R.key)}`:`${SHAFTS[mine.shaft].n} · ${T('Stufe','Level')} ${mine.level}`)+` · <b class="tc t${tr}">${t.n}</b> · ${fmt(R.stone.ct)} ct`;
@@ -641,7 +675,7 @@ function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t)
   $('cuts').innerHTML=c+`<span>${R.cutsLeft} ${R.cutsLeft===1?T('Schnitt','cut'):T('Schnitte','cuts')}</span>`;
   $('doneBtn').disabled=R.done||!R.hist.length;
   const s=streak();$('streak').textContent=s?`${T('Serie','Streak')} ${s}`:'';
-  if(hintWarn<=0){hint.className='hint';hint.textContent=R.done||R.hist.length?'':T('Wisch quer über den Stein, um ihn zu schneiden.','Swipe across the stone to cut it.')}}
+  if(hintWarn<=0){hint.className='hint';hint.textContent=R.done||R.hist.length||R.rush?'':T('Wisch quer über den Stein, um ihn zu schneiden.','Swipe across the stone to cut it.')}}
 
 function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(d.s)],s=streak(),full=Math.round(d.s/20);
   const bar='◆'.repeat(full)+'◇'.repeat(5-full),url='\nhttps://dashslashtod-wq.github.io/schliff/';
@@ -663,7 +697,9 @@ function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cu
          `<b>${fmtM(mine.score)}</b> from ${mine.level} ${mine.level===1?'stone':'stones'}. ${mine.record?'New record.':'Record: '+fmtM(save.best)+'.'}`)+'</p>';
     h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">${T('Neue Schicht','New shift')}</button><button class="btn" id="toShop">${T('Zum Laden','To the shop')}</button></div>`;
   }else{
-    h+=`<p class="res-line">${T('Verkauft für','Sold for')} <b class="gain">+${fmtM(R.pay)}</b>${R.lost?` · <span class="bad">${T('unter 50 %, ein Leben weg','below 50%, one life lost')}</span>`:''}</p>`;
+    if(R.rush&&!R.won){const why=R.failed==='time'?T('Zeit um','time up'):R.failed==='crack'?T('Riss im Juwel','gem cracked'):T(`unter ${RUSH_MIN} %`,`below ${RUSH_MIN}%`);
+      h+=`<p class="res-line"><span class="bad">${T('Zeitstein verloren','Rush stone lost')}: ${why}.</span> ${T('Keine Belohnung, kein Leben weg.','No reward, no life lost.')}</p>`}
+    else h+=`<p class="res-line">${R.won?T(`Zeitstein geschafft, Preis ×${RUSH_X}:`,`Rush stone done, price ×${RUSH_X}:`):T('Verkauft für','Sold for')} <b class="gain">+${fmtM(R.pay)}</b>${R.lost?` · <span class="bad">${T('unter 50 %, ein Leben weg','below 50%, one life lost')}</span>`:''}</p>`;
     h+=`<div class="res-btns"><button class="btn primary" id="nextBtn">${T('Nächster Stein','Next stone')}</button></div>`;
   }
   panel.innerHTML=h;panel.hidden=false;R.cnt=reduce?1:0;
@@ -744,12 +780,12 @@ function draw(R){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);if(!R)
   if(ra>.01){ctx.globalAlpha=ra;drawRock(R.rock,R.rot);
     if(trr>=1){const lw=ctx.lineWidth;ctx.strokeStyle=tcol;ctx.lineWidth=lw*(trr>=3?3.2:2.4);poly(R.rock);ctx.stroke();ctx.lineWidth=lw}
     ctx.globalAlpha=1}
-  drawGem(R.gem,t,R.rot,R.done?26:12+4*Math.sin(R.t*2.2));
+  if(!R.gone)drawGem(R.gem,t,R.rot,R.done?26:12+4*Math.sin(R.t*2.2));
   ctx.lineCap='round';
   for(const c of R.crackLines){const k=onLine(R.gem,c[0],[-(c[1][1]-c[0][1]),c[1][0]-c[0][0]]);if(k.length<2)continue;const a=k[0],b=k[k.length-1];
     ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=2.4/S;ctx.beginPath();ctx.moveTo(a[0],a[1]);
     for(let i=1;i<6;i++){const u=i/6,j=(i%2?1:-1)*.012;ctx.lineTo(a[0]+(b[0]-a[0])*u+j,a[1]+(b[1]-a[1])*u-j)}ctx.lineTo(b[0],b[1]);ctx.stroke()}
-  if(R.done&&R.fin>.5&&R.gem.length>=3){const c=centroid(R.gem),g=((R.fin-.5)%3.2)/.8;
+  if(R.done&&!R.gone&&R.fin>.5&&R.gem.length>=3){const c=centroid(R.gem),g=((R.fin-.5)%3.2)/.8;
     if(g<1&&!reduce){ctx.save();poly(R.gem);ctx.clip();ctx.rotate(-R.rot);const cw=toWorld(c,R.rot),x=cw[0]-.75+1.5*g;
       const gr=ctx.createLinearGradient(x-.14,-.1,x+.14,.1);gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(.5,'rgba(255,255,255,.7)');gr.addColorStop(1,'rgba(255,255,255,0)');
       ctx.fillStyle=gr;ctx.fillRect(cw[0]-2,cw[1]-2,4,4);ctx.restore()}
@@ -784,6 +820,10 @@ function update(R,dt){if(hintWarn>0){hintWarn-=dt;if(hintWarn<=0)refreshHud()}
   if(parts.length)parts=parts.filter(p=>p.life>0);
   if(floats.length){for(const f of floats)f.life-=dt;floats=floats.filter(f=>f.life>0)}
   if(!R)return;R.t+=dt;
+  if(R.rush&&!R.done){if(R.cutsLeft>0&&$('intro').hidden&&$('back').hidden){if(R.grace>0)R.grace-=dt;
+      else{const b=Math.ceil(R.time);R.time-=dt;if(R.time>0&&R.time<=3&&Math.ceil(R.time)<b)sfxTick();
+        if(R.time<=0){R.time=0;R.failed='time';drag=null;rushHud(R);finish(R);return}}}
+    rushHud(R)}
   if(!R.done)R.rot+=R.omega*dt;else R.fin+=dt;
   for(const d of R.debris){d.vy+=3.4*dt;d.x+=d.vx*dt;d.y+=d.vy*dt;d.a+=d.va*dt;d.t+=dt}
   if(R.debris.length)R.debris=R.debris.filter(d=>d.t<1.5);
