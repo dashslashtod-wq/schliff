@@ -19,6 +19,7 @@ Live: https://dashslashtod-wq.github.io/schliff/
 - **Meisterbrief:** ab Schacht 3 neu anfangen für dauerhaft +50 % pro Brief.
 - **Laden:** Schächte, Hilfsmittel, Werkstatt (Lehrlinge verdienen auch offline).
 - **Vitrine:** Tagessteine, Sammlung aller Steinarten, Erfolge mit Belohnung.
+- **Bestenliste:** freiwillige, öffentliche Tagesstein-Wertung mit Anzeigename; kein Konto nötig.
 - **Menü:** Musik, Geräusche, Sprache (Deutsch/Englisch), Anleitung, Spielstand sichern, laden, löschen.
 - **App:** auf dem Handy installierbar, läuft ohne Netz weiter.
 
@@ -67,4 +68,4 @@ git push origin main main:gh-pages
 
 ## Spielstand
 
-Liegt nur im `localStorage` des Browsers (Schlüssel `schliff.v1`). Kein Konto, kein Server. Im Menü lässt er sich als Code sichern und auf einem anderen Gerät laden.
+Der Spielstand liegt im `localStorage` des Browsers (Schlüssel `schliff.v1`). Kein Konto nötig. Die optionale Tagesstein-Bestenliste nutzt Supabase; Name und Wertung sind öffentlich. Im Menü lässt sich der Spielstand als Code sichern und auf einem anderen Gerät laden.

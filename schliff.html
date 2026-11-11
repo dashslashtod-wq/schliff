@@ -192,6 +192,20 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .slot.today{border-color:var(--brass);color:var(--brass)}
 .slot .q{font-family:var(--f-display);font-weight:700;font-size:1.5rem;line-height:1}
 .note{margin:0;color:var(--ink-dim);font-size:.88rem;max-width:60ch}
+.board-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,1fr);gap:8px;align-items:end}
+.board-form label{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.85rem;color:var(--ink-dim)}
+.board-form input{min-width:0;width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bench-2);color:var(--ink);font:inherit}
+.board-actions{display:flex;gap:8px}
+.board-actions .btn{flex:1 1 0;min-width:0}
+.board-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.board-list li{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bench-2);border-radius:12px;min-width:0}
+.board-list .board-empty{color:var(--ink-dim);font-size:.88rem}
+.board-rank{flex:none;width:2ch;color:var(--brass);font-family:var(--f-num);font-weight:700}
+.board-player{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:800}
+.board-metrics{display:flex;flex-direction:column;align-items:flex-end;text-align:right;font-variant-numeric:tabular-nums}
+.board-metrics strong{font-family:var(--f-num);font-size:.95rem}
+.board-metrics small{color:var(--ink-dim);font-size:.7rem}
+@media (max-width:460px){.board-form{grid-template-columns:1fr}.board-actions{width:100%}}
 .vols{display:flex;gap:10px 18px;flex-wrap:wrap}
 .vols label{flex:1 1 220px;display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.85rem;color:var(--ink-dim)}
 .vols input{width:100%;accent-color:var(--brass)}
@@ -319,6 +333,17 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     <h2 data-en="Your stones">Deine Steine</h2>
     <div class="shelf" id="shelf"></div>
     <p class="note" data-en="Every day there is one new stone, the same for everyone. You get one try. Missed days stay empty.">Jeden Tag gibt es einen neuen Stein, für alle denselben. Du hast einen Versuch. Verpasste Tage bleiben leer.</p>
+    <h2 data-en="Today's leaderboard">Bestenliste heute</h2>
+    <p class="note" data-en="Your display name and score will be public. Entries are not verified; you cannot edit or remove a submitted result here.">Anzeigename und Ergebnis sind öffentlich. Einträge werden nicht geprüft und lassen sich hier nicht ändern oder löschen.</p>
+    <form class="board-form" id="boardForm">
+      <label for="boardName"><span data-en="Display name">Anzeigename</span><input id="boardName" maxlength="24" autocomplete="nickname" required></label>
+      <div class="board-actions">
+        <button class="btn primary" id="boardSubmit" type="submit" disabled data-en="Submit score">Ergebnis senden</button>
+        <button class="btn" id="boardRefresh" type="button" data-en="Refresh">Aktualisieren</button>
+      </div>
+    </form>
+    <p class="note" id="boardStatus" role="status" aria-live="polite"></p>
+    <ol class="board-list" id="boardList"></ol>
     <h2 data-en="Collection">Sammlung</h2>
     <div class="shelf" id="codex"></div>
     <h2 data-en="Achievements">Erfolge</h2>
@@ -399,6 +424,44 @@ save.money=+save.money||0;save.shaft=Math.max(0,Math.min(9,save.shaft|0));save.s
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
 /* Anonyme Zählung (GoatCounter, ohne Cookies). Läuft nur, wenn die gehostete Seite das Zählskript geladen hat. */
 const track=n=>{try{const g=window.goatcounter;if(g&&g.count)g.count({path:'ev-'+n,title:n,event:true})}catch(e){}};
+/* Öffentliche Supabase-Schlüssel sind für Browser gedacht; RLS begrenzt den Zugriff. */
+const BOARD_URL='https://akzcegzdeyotxfehjkdt.supabase.co',BOARD_KEY='sb_publishable_zANVJxDkT2xO7k-QrWhD5w_Jqbx_mu2';
+const BOARD_NAME_KEY='schliff.board.name',BOARD_DEVICE_KEY='schliff.board.device';
+let BOARD_DEVICE_ID='';try{BOARD_DEVICE_ID=localStorage.getItem(BOARD_DEVICE_KEY)||crypto.randomUUID();localStorage.setItem(BOARD_DEVICE_KEY,BOARD_DEVICE_ID)}catch(e){}
+let boardAlreadySubmitted=false,boardSubmitting=false,boardRead=0;
+const boardHeaders={'apikey':BOARD_KEY,'Authorization':'Bearer '+BOARD_KEY};
+const boardUrl=params=>BOARD_URL+'/rest/v1/scores?'+params.toString();
+function boardSyncButton(){const b=$('boardSubmit'),d=save.days[dayKey()],name=$('boardName').value.trim();
+  b.textContent=boardSubmitting?T('Wird gesendet…','Sending…'):boardAlreadySubmitted?T('Schon eingetragen','Already submitted'):T('Ergebnis senden','Submit score');
+  b.disabled=boardSubmitting||boardAlreadySubmitted||!d||!name||!BOARD_DEVICE_ID}
+async function loadLeaderboard(){const seq=++boardRead,today=dayKey(),list=$('boardList'),refresh=$('boardRefresh');refresh.disabled=true;list.replaceChildren();
+  $('boardStatus').textContent=T('Bestenliste wird geladen…','Loading leaderboard…');boardSyncButton();
+  const q=new URLSearchParams({select:'name,purity,cuts,cracks',day:'eq.'+today,order:'purity.desc,cracks.asc,cuts.asc,created_at.asc',limit:'10'});
+  const ownQ=new URLSearchParams({select:'day',day:'eq.'+today,device_id:'eq.'+BOARD_DEVICE_ID,limit:'1'});
+  try{const [br,or]=await Promise.all([fetch(boardUrl(q),{headers:boardHeaders,cache:'no-store'}),fetch(boardUrl(ownQ),{headers:boardHeaders,cache:'no-store'})]);
+    if(!br.ok||!or.ok)throw new Error('Leaderboard request failed');const rows=await br.json(),own=await or.json();if(seq!==boardRead)return;
+    boardAlreadySubmitted=own.length>0;boardSyncButton();
+    if(!rows.length){const li=document.createElement('li');li.className='board-empty';li.textContent=T('Heute gibt es noch keine Einträge.','No entries for today yet.');list.append(li)}
+    else rows.forEach((r,i)=>{const li=document.createElement('li'),rank=document.createElement('span'),name=document.createElement('span'),metrics=document.createElement('span'),score=document.createElement('strong'),details=document.createElement('small');
+      li.className='board-row';rank.className='board-rank';rank.textContent=String(i+1)+'.';name.className='board-player';name.textContent=String(r.name||'');metrics.className='board-metrics';
+      score.textContent=fmt(Number(r.purity)||0)+T(' %','%');details.textContent=fmtInt(Number(r.cuts)||0)+' '+T('Schnitte','cuts')+' · '+fmtInt(Number(r.cracks)||0)+' '+T('Risse','cracks');
+      metrics.append(score,details);li.append(rank,name,metrics);list.append(li)});
+    $('boardStatus').textContent=boardAlreadySubmitted?T('Dein Ergebnis steht in der Liste.','Your score is on the leaderboard.'):
+      save.days[today]?T('Dein Tagesstein ist bereit zum Eintragen.','Your daily stone is ready to submit.'):
+      T('Schleife zuerst den heutigen Tagesstein.','Cut today’s daily stone first.');
+  }catch(e){if(seq===boardRead)$('boardStatus').textContent=T('Bestenliste gerade nicht erreichbar. Versuche es erneut.','Leaderboard unavailable. Please try again.')}
+  finally{if(seq===boardRead)refresh.disabled=false}}
+async function submitDailyScore(e){e.preventDefault();const today=dayKey(),d=save.days[today],name=$('boardName').value.trim();
+  if(!d||!name||!BOARD_DEVICE_ID)return;try{localStorage.setItem(BOARD_NAME_KEY,name)}catch(e){}
+  boardSubmitting=true;boardSyncButton();$('boardStatus').textContent=T('Ergebnis wird gesendet…','Submitting score…');
+  try{const r=await fetch(BOARD_URL+'/rest/v1/scores',{method:'POST',headers:{...boardHeaders,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({day:today,device_id:BOARD_DEVICE_ID,name,purity:d.s,cuts:d.u,cracks:d.c})});
+    if(r.status===409){boardAlreadySubmitted=true;await loadLeaderboard();$('boardStatus').textContent=T('Für heute ist bereits ein Ergebnis eingetragen.','A score has already been submitted for today.');return}
+    if(!r.ok)throw new Error('Score submission failed');boardAlreadySubmitted=true;await loadLeaderboard();$('boardStatus').textContent=T('Ergebnis eingetragen.','Score submitted.');
+  }catch(err){$('boardStatus').textContent=T('Senden fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.','Could not submit. Check your connection and try again.')}
+  finally{boardSubmitting=false;boardSyncButton()}}
+try{$('boardName').value=localStorage.getItem(BOARD_NAME_KEY)||''}catch(e){}
+$('boardName').addEventListener('input',()=>{try{localStorage.setItem(BOARD_NAME_KEY,$('boardName').value)}catch(e){}boardSyncButton()});
+$('boardForm').addEventListener('submit',submitDailyScore);$('boardRefresh').addEventListener('click',loadLeaderboard);
 
 /* ---------- Datum ---------- */
 const EPOCH=new Date(2026,10,10);
@@ -1068,7 +1131,7 @@ function renderVitrine(){const today=dayKey(),keys=Object.keys(save.days).sort()
   $('achs').innerHTML=ACH.slice().sort((a,b)=>ord(a)-ord(b)).map(a=>{const s=save.ach[a.k]||0,v=Math.min(a.g,Math.max(0,a.v()));
     const btn=s===2?`<button class="buy on" disabled>${T('Erhalten','Claimed')}</button>`:s===1?`<button class="buy" data-ach="${a.k}">+${fmtM(a.r)}</button>`:`<button class="buy" disabled>${fmtM(a.r)}</button>`;
     return`<li class="${s===2?'got':''}"><div class="txt"><div class="nm">${T(a.de,a.en)}${s?'':`<span class="lv pg">${fmtBig(v)} / ${fmtBig(a.g)}</span>`}</div><div class="ds">${T(a.dd,a.ed)}</div></div>${btn}</li>`}).join('');
-  achDot()}
+  achDot();loadLeaderboard()}
 $('achs').addEventListener('click',e=>{const b=e.target.closest('button[data-ach]');if(!b)return;const a=ACH.find(x=>x.k===b.dataset.ach);if(!a||save.ach[a.k]!==1)return;
   const r=b.getBoundingClientRect();save.ach[a.k]=2;save.money+=a.r;persist();audio();sfxBuy();coins(14,[r.left+r.width/2,r.top+r.height/2]);sfxCoins(8);showMoney();checkMiles();renderVitrine()});
 
