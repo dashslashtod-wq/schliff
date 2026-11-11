@@ -34,6 +34,7 @@ itch.io: https://dashslashtod.itch.io/schliff
 | `sw.js` | Service Worker: Netz zuerst, ohne Netz die letzte gespeicherte Fassung. |
 | `manifest.webmanifest` | Angaben für die Installation als App. |
 | `build-itch.js` | Baut `schliff-itch.zip` für itch.io. Anleitung in `ITCH.md`. |
+| `build-crazy.js` | Baut `schliff-crazygames.zip` für CrazyGames (mit SDK, ohne externe Links). Anleitung in `CRAZY.md`. |
 | `gen-icons.js` | Erzeugt `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` und `og.png`. |
 
 ## Bauen

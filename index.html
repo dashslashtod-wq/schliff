@@ -217,6 +217,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .slot.today{border-color:var(--brass);color:var(--brass)}
 .slot .q{font-family:var(--f-display);font-weight:700;font-size:1.5rem;line-height:1}
 .note{margin:0;color:var(--ink-dim);font-size:.88rem;max-width:60ch}
+.wrap{display:contents}
 .board-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,1fr);gap:8px;align-items:end}
 .board-form label{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.85rem;color:var(--ink-dim)}
 .board-form input{min-width:0;width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bench-2);color:var(--ink);font:inherit}
@@ -302,7 +303,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
       <div class="intro" id="back" hidden>
         <h2 data-en="Welcome back.">Willkommen zurück.</h2>
         <p id="backTxt"></p>
-        <div class="res-btns"><button class="btn primary" id="backBtn" data-en="Collect">Einsammeln</button></div>
+        <div class="res-btns"><button class="btn primary" id="backBtn" data-en="Collect">Einsammeln</button><button class="btn" id="backAdBtn" hidden data-en="Watch a video: collect double">Video ansehen: doppelt einsammeln</button></div>
       </div>
       <div class="intro" id="intro" hidden>
         <h2 data-en="Free the gem.">Leg das Juwel frei.</h2>
@@ -359,6 +360,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
     <h2 data-en="Your stones">Deine Steine</h2>
     <div class="shelf" id="shelf"></div>
     <p class="note" data-en="Every day there is one new stone, the same for everyone. You get one try. Missed days stay empty.">Jeden Tag gibt es einen neuen Stein, für alle denselben. Du hast einen Versuch. Verpasste Tage bleiben leer.</p>
+    <div class="wrap" id="boardBox">
     <h2 data-en="Today's leaderboard">Bestenliste heute</h2>
     <p class="note" data-en="Your display name and score will be public. Entries are not verified; you cannot edit or remove a submitted result here.">Anzeigename und Ergebnis sind öffentlich. Einträge werden nicht geprüft und lassen sich hier nicht ändern oder löschen.</p>
     <form class="board-form" id="boardForm">
@@ -370,6 +372,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
     </form>
     <p class="note" id="boardStatus" role="status" aria-live="polite"></p>
     <ol class="board-list" id="boardList"></ol>
+    </div>
     <h2 data-en="Collection">Sammlung</h2>
     <div class="shelf" id="codex"></div>
     <h2 data-en="Achievements">Erfolge</h2>
@@ -400,7 +403,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
     </ul>
     <h2 data-en="Save game">Spielstand</h2>
     <p class="note" data-en="Your progress is stored only in this browser. With the code you can back it up or take it to another device.">Dein Spielstand liegt nur in diesem Browser. Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</p>
-    <p class="note" data-en="This page counts visits anonymously (GoatCounter, no cookies, no personal data).">Diese Seite zählt Besuche anonym (GoatCounter, ohne Cookies, ohne persönliche Daten).</p>
+    <p class="note" id="gcNote" data-en="This page counts visits anonymously (GoatCounter, no cookies, no personal data).">Diese Seite zählt Besuche anonym (GoatCounter, ohne Cookies, ohne persönliche Daten).</p>
     <div class="set-row">
       <button class="btn" id="expBtn" data-en="Copy code">Code kopieren</button>
       <button class="btn" id="impBtn" data-en="Load code">Code laden</button>
@@ -408,9 +411,11 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
     </div>
     <textarea id="saveTxt" hidden aria-label="Spielstand-Code" spellcheck="false"></textarea>
     <p class="note" id="saveMsg" role="status"></p>
+    <div class="wrap" id="supportBox">
     <h2 data-en="Support Schliff">Schliff unterstützen</h2>
     <p class="note" data-en="Liked it? Rate the game on itch.io, leave a comment or send a small donation. That helps a lot.">Gefällt dir das Spiel? Bewerte es auf itch.io, schreib einen Kommentar oder schick eine kleine Spende. Das hilft sehr.</p>
     <div class="set-row"><a class="btn" id="itchLink" href="https://dashslashtod.itch.io/schliff" target="_blank" rel="noopener" data-en="Open itch.io page">Zur itch.io-Seite</a></div>
+    </div>
     <div class="res-btns"><button class="btn primary" id="menuClose" data-en="Back to the game">Zurück zum Spiel</button></div>
   </section>
 </div>
@@ -421,10 +426,20 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
 <script>
 (()=>{
 'use strict';
+/* ---------- Spieleportal CrazyGames: nur aktiv, wenn build-crazy.js das SDK geladen hat (window.SCHLIFF_CG) ---------- */
+const CG=window.SCHLIFF_CG||null;
+let cgPlaying=false,cgAdOn=false;
+const cgCall=f=>{try{f(CG.sdk)}catch(e){}};
+const cgSilent=()=>{if(!CG)return false;if(cgAdOn)return true;try{return!!CG.sdk.game.settings.muteAudio}catch(e){return false}};
+/* Speicher: auf CrazyGames deren Datenmodul (synchronisiert mit dem Konto), sonst localStorage */
+const STORE=CG&&CG.store?CG.store:null;
+const lsGet=k=>{try{return STORE?STORE.getItem(k):localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{STORE?STORE.setItem(k,v):localStorage.setItem(k,v)}catch(e){}};
+const lsDel=k=>{try{STORE?STORE.removeItem(k):localStorage.removeItem(k)}catch(e){}};
 const TAU=Math.PI*2, $=id=>document.getElementById(id);
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* ---------- Sprache: gespeicherte Wahl, sonst Browsersprache (Deutsch nur bei de-*) ---------- */
-const LANG=(()=>{try{const l=JSON.parse(localStorage.getItem('schliff.v1')||'{}').lang;if(l==='de'||l==='en')return l}catch(e){}return/^de\b/i.test(navigator.language||'')?'de':'en'})();
+const LANG=(()=>{try{const l=JSON.parse(lsGet('schliff.v1')||'{}').lang;if(l==='de'||l==='en')return l}catch(e){}return/^de\b/i.test(navigator.language||'')?'de':'en'})();
 const EN=LANG==='en',T=(de,en)=>EN?en:de;
 try{document.documentElement.lang=LANG}catch(e){}
 if(EN){for(const e of document.querySelectorAll('[data-en]'))e.innerHTML=e.dataset.en;
@@ -439,7 +454,7 @@ const fmtBig=v=>{v=Math.round(v);const a=Math.abs(v);if(a<1e6)return fmtInt(v);
 /* ---------- Speicher ---------- */
 const KEY='schliff.v1';
 let save={days:{},best:0,snd:true,mus:true,seen:false,cur:null,n:0,money:0,shaft:0,sel:0,up:{}};
-try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object'&&s.days)save=Object.assign(save,s)}catch(e){}
+try{const s=JSON.parse(lsGet(KEY));if(s&&typeof s==='object'&&s.days)save=Object.assign(save,s)}catch(e){}
 save.up=Object.assign({lupe:0,guide:0,cut:0,ins:0,pol:0,luck:0,clock:0,deal:0,work:0,store:0},save.up);
 /* Zeitlupe gibt es nicht mehr: Kaufpreis zurückzahlen */
 if(save.up.slow){save.money=(+save.money||0)+[0,600,3600,17600][Math.min(3,save.up.slow|0)]}delete save.up.slow;
@@ -452,7 +467,7 @@ if(typeof save.mile!=='number')save.mile=MILES.filter(m=>(+save.money||0)>=m).le
 save.money=+save.money||0;save.shaft=Math.max(0,Math.min(9,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
 /* Spielseite auf itch.io: zum Teilen, Bewerten und Spenden */
 const ITCH_URL='https://dashslashtod.itch.io/schliff';
-const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
+const persist=()=>lsSet(KEY,JSON.stringify(save));
 /* Anonyme Zählung (GoatCounter, ohne Cookies). Läuft nur, wenn die gehostete Seite das Zählskript geladen hat. */
 const track=n=>{try{const g=window.goatcounter;if(g&&g.count)g.count({path:'ev-'+n,title:n,event:true})}catch(e){}};
 /* Öffentliche Supabase-Schlüssel sind für Browser gedacht; RLS begrenzt den Zugriff.
@@ -466,7 +481,7 @@ const boardUrl=params=>BOARD_URL+'/rest/v1/scores?'+params.toString();
 function boardSyncButton(){const b=$('boardSubmit'),d=save.days[dayKey()],name=$('boardName').value.trim();
   b.textContent=boardSubmitting?T('Wird gesendet…','Sending…'):boardAlreadySubmitted?T('Schon eingetragen','Already submitted'):T('Ergebnis senden','Submit score');
   b.disabled=boardSubmitting||boardAlreadySubmitted||!d||!name||!BOARD_DEVICE_ID}
-async function loadLeaderboard(){const seq=++boardRead,today=dayKey(),list=$('boardList'),refresh=$('boardRefresh');refresh.disabled=true;list.replaceChildren();
+async function loadLeaderboard(){if(CG)return;const seq=++boardRead,today=dayKey(),list=$('boardList'),refresh=$('boardRefresh');refresh.disabled=true;list.replaceChildren();
   $('boardStatus').textContent=T('Bestenliste wird geladen…','Loading leaderboard…');boardSyncButton();
   const q=new URLSearchParams({select:'name,purity,cuts,cracks',day:'eq.'+today,order:'purity.desc,cracks.asc,cuts.asc,created_at.asc',limit:'10'});
   const ownQ=new URLSearchParams({select:'day',day:'eq.'+today,device_id:'eq.'+BOARD_DEVICE_ID,limit:'1'});
@@ -655,7 +670,7 @@ function snap(R,A,B){const lv=R.mode==='mine'?save.up.guide:0;if(!lv)return null
 /* ---------- Ton ---------- */
 let ac=null;
 function actx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended'&&!document.hidden)ac.resume();return ac}catch(e){return null}}
-function audio(){const c=actx();if(c&&save.mus)musicStart();return save.snd?c:null}
+function audio(){if(cgSilent())return null;const c=actx();if(c&&save.mus)musicStart();return save.snd?c:null}
 
 /* ---------- Musik: Aufzug- und Kaufhausmusik (Bossa Nova, Easy Listening, Lounge-Jazz, Walzer), komplett im Browser erzeugt.
    Instrumente: E-Piano, Vibraphon, Flöte, Gitarre, Streicher, Bass, Besen. Die Melodie wird bei jedem Durchgang neu gewürfelt. ---------- */
@@ -788,7 +803,12 @@ function musicStart(){if(MUS.on||!save.mus)return;const c=actx();if(!c)return;
     MUS.on=true;MUS.step=0;MUS.bar=0;MUS.rh=null;MUS.next=c.currentTime+.1;MUS.out.gain.cancelScheduledValues(c.currentTime);MUS.out.gain.setTargetAtTime(musVol(),c.currentTime,.25);
     clearInterval(MUS.timer);MUS.timer=setInterval(mTick,40);try{trackLabel()}catch(e){}}catch(e){MUS.on=false}}
 function musicStop(){MUS.on=false;clearInterval(MUS.timer);if(ac&&MUS.out){MUS.out.gain.cancelScheduledValues(ac.currentTime);MUS.out.gain.setTargetAtTime(.0001,ac.currentTime,.08)}}
-document.addEventListener('visibilitychange',()=>{if(!ac)return;try{if(document.hidden)ac.suspend();else ac.resume()}catch(e){}});
+document.addEventListener('visibilitychange',()=>{if(!ac)return;try{if(document.hidden)ac.suspend();else if(!cgSilent())ac.resume()}catch(e){}});
+function cgUnmute(){if(!cgSilent()&&save.mus){actx();musicStart()}}
+/* Werbung über das SDK. done(true) nur, wenn das Video zu Ende geschaut wurde. Ohne SDK geht es sofort weiter. */
+function cgAd(kind,done){if(!CG){done(false);return}let fin=false,started=false;const end=ok=>{if(fin)return;fin=true;done(ok)},stop=()=>{if(cgAdOn){cgAdOn=false;cgUnmute()}};
+  cgCall(s=>s.ad.requestAd(kind,{adStarted:()=>{started=true;cgAdOn=true;musicStop()},adFinished:()=>{stop();end(true)},adError:()=>{stop();end(false)}}));
+  setTimeout(()=>{if(!started)end(false)},kind==='rewarded'?10000:2500)}
 document.addEventListener('pointerdown',()=>{if(save.mus&&!MUS.on)audio()},true);
 function env(g,t,a,d,peak){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d)}
 function tone(c,type,f,t,a,d,peak,f2){const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+a+d);
@@ -959,7 +979,7 @@ function achDot(){$('tab-vitrine').classList.toggle('dot',ACH.some(a=>save.ach[a
 function checkAch(silent){let n=0;for(const a of ACH)if(!save.ach[a.k]&&a.v()>=a.g){save.ach[a.k]=1;n++;if(!silent)banner(T(a.de,a.en),T('Erfolg freigeschaltet','Achievement unlocked'),'rare')}
   if(n){persist();if(!silent)sfxRare(2)}achDot()}
 function checkMiles(){let hit=0;while(save.mile<MILES.length&&save.money>=MILES[save.mile]){hit=MILES[save.mile];save.mile++}
-  if(hit){persist();banner(fmtM(hit),T('Meilenstein erreicht','Milestone reached'),'gold');confetti(70);flash('var(--brass)');sfxJackpot()}}
+  if(hit){if(CG)cgCall(s=>s.game.happytime());persist();banner(fmtM(hit),T('Meilenstein erreicht','Milestone reached'),'gold');confetti(70);flash('var(--brass)');sfxJackpot()}}
 
 /* ---------- Zustand ---------- */
 const cv=$('cv'),ctx=cv.getContext('2d'),bench=$('bench'),panel=$('panel'),hint=$('hint');
@@ -1043,6 +1063,7 @@ function announce(R){if(!R||R.announced||R.done||R.hist.length)return;R.announce
   /* Episch: kleiner Effekt */
   if(tr===3){sfxRare(2);burst(R,45);banner(t.n+'!',TIERSUB[3],'epic');flash('var(--r3)');buzz([20,40,40]);return}
   /* Legendär: alles auf einmal */
+  if(CG)cgCall(s=>s.game.happytime());
   sfxLegend();burst(R,130);banner(t.n+'!',TIERSUB[4],'gold big');flash('#ffffff');confetti(120);if(!reduce)shake=.09;buzz([40,60,40,60,40,60,120]);
   setTimeout(()=>{flash('var(--brass)');if(R===cur()&&!R.done){burst(R,70);if(!reduce)shake=.05}},320)}
 function crumble(R){if(reduce)return;const p=R.rock,rot=R.rot;for(let i=0;i<p.length;i++){const a=toWorld(p[i],rot),b=toWorld(p[(i+1)%p.length],rot);
@@ -1089,7 +1110,7 @@ function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t)
   if(hintWarn<=0){hint.className='hint';hint.textContent=R.done||R.hist.length||R.rush?'':T('Wisch quer über den Stein, um ihn zu schneiden.','Swipe across the stone to cut it.')}}
 
 function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(d.s)],s=streak(),full=Math.round(d.s/20);
-  const bar='◆'.repeat(full)+'◇'.repeat(5-full),url='\n'+ITCH_URL;
+  const bar='◆'.repeat(full)+'◇'.repeat(5-full),url=CG?'':'\n'+ITCH_URL;
   if(EN)return`Schliff · Day ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)}% · ${g[1]}\n${d.u} ${d.u===1?'cut':'cuts'} · ${d.c?d.c+(d.c===1?' crack':' cracks'):'no cracks'}`+(s>1?`\nStreak: ${s} days`:'')+url;
   return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+url}
 
@@ -1120,7 +1141,8 @@ function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cu
   const ib=$('imgBtn');if(ib)ib.addEventListener('click',()=>shareImage(R,ib));
   const tm=$('toMine');if(tm)tm.addEventListener('click',()=>setView('mine'));
   const ts=$('toShop');if(ts)ts.addEventListener('click',()=>setView('shop'));
-  const nb=$('nextBtn');if(nb)nb.addEventListener('click',()=>{audio();if(mine.over)startMine();else nextMine();panel.hidden=true;parts=[];floats=[];refreshHud();announce(cur())})}
+  const nb=$('nextBtn');if(nb)nb.addEventListener('click',()=>{const go=()=>{audio();if(mine.over)startMine();else nextMine();panel.hidden=true;parts=[];floats=[];refreshHud();announce(cur())};
+    if(CG){nb.disabled=true;cgAd('midgame',go)}else go()})}
 
 function countdown(){const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1),s=Math.max(0,Math.floor((m-n)/1000)),p=v=>String(v).padStart(2,'0');
   return p(Math.floor(s/3600))+':'+p(Math.floor(s/60)%60)+':'+p(s%60)}
@@ -1153,13 +1175,13 @@ function shareCanvas(R){const d=save.days[R.key],t=R.stone.type,tr=tier(t),c=doc
   x.fillStyle='#141932';x.fillText(lab,540,221);
   x.fillStyle='#fff8ea';x.font='700 150px '+FD;x.fillText(fmt(d.s)+T(' %','%'),540,885);
   x.font='600 46px '+FD;x.fillText(`${T('Tag','Day')} ${dayNo(R.key)} · ${t.n} · ${GRADES[gradeIdx(d.s)][1]}`,540,975);
-  x.fillStyle='#b6bddd';x.font='500 32px '+FD;x.fillText(ITCH_URL.replace('https://',''),540,1028);
+  x.fillStyle='#b6bddd';x.font='500 32px '+FD;if(!CG)x.fillText(ITCH_URL.replace('https://',''),540,1028);
   return c}
 function shareImage(R,btn){let c;try{c=shareCanvas(R)}catch(e){return}
   const name=`schliff-${T('tag','day')}-${dayNo(R.key)}.png`,done=m=>{btn.textContent=m;setTimeout(()=>{btn.textContent=T('Als Bild teilen','Share as image')},2200)};
   c.toBlob(b=>{if(!b){done(T('Ging nicht','Did not work'));return}
     let f=null;try{f=new File([b],name,{type:'image/png'})}catch(e){}
-    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Schliff',text:ITCH_URL}).catch(()=>{});return}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Schliff',text:CG?'Schliff':ITCH_URL}).catch(()=>{});return}
     try{const a=document.createElement('a'),u=URL.createObjectURL(b);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);done(T('Bild gespeichert','Image saved'))}
     catch(e){done(T('Ging nicht','Did not work'))}},'image/png')}
 function gemSVG(p,t){const c=centroid(p);let m=0;for(const v of p)m=Math.max(m,Math.hypot(v[0]-c[0],v[1]-c[1]));const k=44/(m||1),P=p.map(v=>[50+(v[0]-c[0])*k,50+(v[1]-c[1])*k]);
@@ -1292,7 +1314,9 @@ function update(R,dt){if(hintWarn>0){hintWarn-=dt;if(hintWarn<=0)refreshHud()}
   if(R.panel&&R.cnt<1){R.cnt=Math.min(1,R.cnt+dt/.9);const e=$('resNum');if(e)e.textContent=fmt(R.final*ease(R.cnt))}}
 
 let last=performance.now();
-function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+function cgSync(){if(!CG)return;const R=cur(),on=(view==='daily'||view==='mine')&&!!R&&!R.done&&$('intro').hidden&&$('back').hidden&&!cgAdOn;
+  if(on!==cgPlaying){cgPlaying=on;cgCall(s=>on?s.game.gameplayStart():s.game.gameplayStop())}}
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;cgSync();
   if(view==='daily'||view==='mine'){const R=cur();update(R,dt);if(W&&H)draw(R)}
   requestAnimationFrame(frame)}
 
@@ -1344,6 +1368,9 @@ function collect(){accrue();const n=Math.floor(save.bank);if(n<1)return;const cr
   if(cr.width){coins(12,[cr.left+cr.width/2,cr.top+cr.height/2]);sfxCoins(8)}showMoney();checkMiles();updateCollect();if(view==='shop')renderShop()}
 $('collect').addEventListener('click',collect);
 $('backBtn').addEventListener('click',()=>{$('back').hidden=true;collect();announce(cur())});
+$('backAdBtn').addEventListener('click',()=>{const b=$('backAdBtn');b.disabled=true;
+  cgAd('rewarded',ok=>{if(!ok){b.hidden=true;$('backTxt').innerHTML+=' '+T('Gerade ist kein Video verfügbar.','No video is available right now.');return}
+    accrue();save.bank*=2;persist();$('back').hidden=true;collect();announce(cur())})});
 $('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy');if(!b||b.disabled)return;audio();
   accrue();
   if(b.dataset.tool){const t=[...IDLE,...TOOLS].find(x=>x.k===b.dataset.tool),c=t.costs[save.up[t.k]];if(c===undefined||save.money<c)return;save.money-=c;save.up[t.k]++;sfxBuy()}
@@ -1374,9 +1401,9 @@ $('expBtn').addEventListener('click',()=>{persist();let code='';try{code='SCHLIF
 $('impBtn').addEventListener('click',()=>{const ta=$('saveTxt');
   if(ta.hidden||!ta.value.trim()||ta.value.trim().length<20&&!ta.value.includes('SCHLIFF1:')){ta.value='';ta.hidden=false;ta.focus();saveMsg(T('Füge deinen Code ins Feld ein und drück noch einmal „Code laden“. Der jetzige Spielstand wird ersetzt.','Paste your code into the box and press “Load code” again. Your current progress will be replaced.'));return}
   try{const raw=ta.value.trim().replace(/^SCHLIFF1:/,''),s=JSON.parse(decodeURIComponent(escape(atob(raw))));if(!s||typeof s!=='object'||!s.days)throw 0;
-    localStorage.setItem(KEY,JSON.stringify(s));location.reload()}catch(e){saveMsg(T('Der Code ist ungültig. Nichts wurde geändert.','That code is not valid. Nothing was changed.'))}});
+    lsSet(KEY,JSON.stringify(s));setTimeout(()=>location.reload(),1200)}catch(e){saveMsg(T('Der Code ist ungültig. Nichts wurde geändert.','That code is not valid. Nothing was changed.'))}});
 let rstArm=0;
-$('rstBtn').addEventListener('click',()=>{const b=$('rstBtn');if(Date.now()<rstArm){try{localStorage.removeItem(KEY)}catch(e){}location.reload();return}
+$('rstBtn').addEventListener('click',()=>{const b=$('rstBtn');if(Date.now()<rstArm){lsDel(KEY);setTimeout(()=>location.reload(),1200);return}
   rstArm=Date.now()+5000;b.classList.add('armed');b.textContent=T('Wirklich alles löschen?','Really delete everything?');saveMsg(T('Geld, Steine, Erfolge und Serie gehen verloren. Das lässt sich nicht rückgängig machen.','Money, stones, achievements and streak will be lost. This cannot be undone.'));
   setTimeout(()=>{if(Date.now()>=rstArm){b.classList.remove('armed');b.textContent=T('Alles löschen','Delete everything');saveMsg('')}},5200)});
 musBtn.addEventListener('click',()=>{save.mus=!save.mus;persist();sndLabel();if(save.mus){actx();musicStart()}else musicStop()});
@@ -1389,10 +1416,12 @@ $('introMine').addEventListener('click',()=>closeIntro('mine'));
   if(save.up.work>0&&away>5*6e4&&n>=1&&save.bank>before){const full=save.bank>=idleCap()-.5;
     $('backTxt').innerHTML=T(`Du warst ${fmtDur(away)} weg. Im Lager liegen <b>${fmtM(n)}</b> von deinen Lehrlingen.`+(full?' Das Lager ist voll. Ein größeres Lager fasst mehr.':''),
       `You were away for ${fmtDur(away)}. Your apprentices left <b>${fmtM(n)}</b> in storage.`+(full?' Storage is full. A bigger one holds more.':''));
-    $('back').hidden=false}}
+    $('back').hidden=false;if(CG)$('backAdBtn').hidden=false}}
 ensureJobs();persist();$('tab-jobs').classList.toggle('dot',whReady());
 if(save.seen&&save.evW!==EV().w){save.evW=EV().w;persist();setTimeout(()=>banner(EV().name,T('Diese Woche','This week'),'rare'),1500)}
 buildDaily();sndLabel();updateCollect();checkAch(true);
+if(CG){for(const id of['boardBox','supportBox','gcNote'])$(id).hidden=true;save.seen=true;
+  cgCall(s=>s.game.addSettingsChangeListener(st=>{if(st&&st.muteAudio)musicStop();else cgUnmute()}))}
 if(!save.seen&&!rounds.daily.done)$('intro').hidden=false;
 setView('daily');
 new ResizeObserver(resize).observe(bench);resize();

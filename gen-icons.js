@@ -113,3 +113,20 @@ const cover = (u, v) => {
   return sapphire(p) || (!cut && rock2(p)) || mix(LAMP, BG, Math.min(1, d / 0.7));
 };
 render(630, 500, cover, 'itch-media/cover.png');
+
+// Titelbilder für CrazyGames: 1920 x 1080, 800 x 1200, 800 x 800 (ohne Rahmen, ohne Text)
+function coverScene(w, h) {
+  const ar = w / h, k = Math.min(1, ar);
+  const rg = (n, rx, ry, cx, cy, rot, wob) => Array.from({ length: n }, (_, i) => {
+    const a = rot + (i + wob[i % wob.length]) / n * Math.PI * 2;
+    return [cx + Math.cos(a) * rx * k / ar, cy + Math.sin(a) * ry * k];
+  });
+  const rock = faceted(rg(11, 0.42, 0.42, 0.5, 0.5, 0.5, [0, 0.18, -0.12, 0.1, -0.2, 0.15]), sh => hsl(26 + sh * 10, 14 + sh * 7, 25 + sh * 30));
+  const gem = faceted(rg(7, 0.2, 0.22, 0.5, 0.5, 0.2, [0, 0.1, -0.12]), sh => hsl(222, 78, 32 + sh * 42));
+  return (u, v) => {
+    const x = (u - 0.5) * ar / k, y = (v - 0.5) / k;
+    const cut = x * -0.55 - y * 0.83 > 0.3;
+    return gem([u, v]) || (!cut && rock([u, v])) || mix(LAMP, BG, Math.min(1, Math.hypot((u - 0.5) * ar, v - 0.5) / (0.7 * Math.max(1, ar))));
+  };
+}
+for (const [w, h, f] of [[1920, 1080, 'crazygames-media/cover-landscape.png'], [800, 1200, 'crazygames-media/cover-portrait.png'], [800, 800, 'crazygames-media/cover-square.png']]) render(w, h, coverScene(w, h), f);
