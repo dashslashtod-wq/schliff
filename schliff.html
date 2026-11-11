@@ -221,6 +221,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 #menuView h2{margin:6px 0 0;font-family:var(--f-display);font-weight:700;font-size:1.3rem}
 .set-row{display:flex;gap:10px;flex-wrap:wrap}
 .set-row .btn{flex:1 1 150px}
+a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
 .btn.armed{background:var(--crack);color:var(--shade)}
 .help{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;max-width:65ch}
 .help li{background:var(--bench-2);border-radius:14px;padding:10px 14px;color:var(--ink-dim)}
@@ -382,6 +383,9 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     </div>
     <textarea id="saveTxt" hidden aria-label="Spielstand-Code" spellcheck="false"></textarea>
     <p class="note" id="saveMsg" role="status"></p>
+    <h2 data-en="Support Schliff">Schliff unterstützen</h2>
+    <p class="note" data-en="Liked it? Rate the game on itch.io, leave a comment or send a small donation. That helps a lot.">Gefällt dir das Spiel? Bewerte es auf itch.io, schreib einen Kommentar oder schick eine kleine Spende. Das hilft sehr.</p>
+    <div class="set-row"><a class="btn" id="itchLink" href="https://dashslashtod.itch.io/schliff" target="_blank" rel="noopener" data-en="Open itch.io page">Zur itch.io-Seite</a></div>
     <div class="res-btns"><button class="btn primary" id="menuClose" data-en="Back to the game">Zurück zum Spiel</button></div>
   </section>
 </div>
@@ -421,6 +425,8 @@ save.bank=Math.max(0,+save.bank||0);save.idleT=+save.idleT||0;save.pres=save.pre
 const MILES=[1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13];
 if(typeof save.mile!=='number')save.mile=MILES.filter(m=>(+save.money||0)>=m).length;
 save.money=+save.money||0;save.shaft=Math.max(0,Math.min(9,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
+/* Spielseite auf itch.io: zum Teilen, Bewerten und Spenden */
+const ITCH_URL='https://dashslashtod.itch.io/schliff';
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
 /* Anonyme Zählung (GoatCounter, ohne Cookies). Läuft nur, wenn die gehostete Seite das Zählskript geladen hat. */
 const track=n=>{try{const g=window.goatcounter;if(g&&g.count)g.count({path:'ev-'+n,title:n,event:true})}catch(e){}};
@@ -1058,7 +1064,7 @@ function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t)
   if(hintWarn<=0){hint.className='hint';hint.textContent=R.done||R.hist.length||R.rush?'':T('Wisch quer über den Stein, um ihn zu schneiden.','Swipe across the stone to cut it.')}}
 
 function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(d.s)],s=streak(),full=Math.round(d.s/20);
-  const bar='◆'.repeat(full)+'◇'.repeat(5-full),url='\nhttps://dashslashtod-wq.github.io/schliff/';
+  const bar='◆'.repeat(full)+'◇'.repeat(5-full),url='\n'+ITCH_URL;
   if(EN)return`Schliff · Day ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)}% · ${g[1]}\n${d.u} ${d.u===1?'cut':'cuts'} · ${d.c?d.c+(d.c===1?' crack':' cracks'):'no cracks'}`+(s>1?`\nStreak: ${s} days`:'')+url;
   return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+url}
 
@@ -1122,13 +1128,13 @@ function shareCanvas(R){const d=save.days[R.key],t=R.stone.type,tr=tier(t),c=doc
   x.fillStyle='#141932';x.fillText(lab,540,221);
   x.fillStyle='#fff8ea';x.font='700 150px '+FD;x.fillText(fmt(d.s)+T(' %','%'),540,885);
   x.font='600 46px '+FD;x.fillText(`${T('Tag','Day')} ${dayNo(R.key)} · ${t.n} · ${GRADES[gradeIdx(d.s)][1]}`,540,975);
-  x.fillStyle='#b6bddd';x.font='500 32px '+FD;x.fillText('dashslashtod-wq.github.io/schliff',540,1028);
+  x.fillStyle='#b6bddd';x.font='500 32px '+FD;x.fillText(ITCH_URL.replace('https://',''),540,1028);
   return c}
 function shareImage(R,btn){let c;try{c=shareCanvas(R)}catch(e){return}
   const name=`schliff-${T('tag','day')}-${dayNo(R.key)}.png`,done=m=>{btn.textContent=m;setTimeout(()=>{btn.textContent=T('Als Bild teilen','Share as image')},2200)};
   c.toBlob(b=>{if(!b){done(T('Ging nicht','Did not work'));return}
     let f=null;try{f=new File([b],name,{type:'image/png'})}catch(e){}
-    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Schliff',text:'https://dashslashtod-wq.github.io/schliff/'}).catch(()=>{});return}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Schliff',text:ITCH_URL}).catch(()=>{});return}
     try{const a=document.createElement('a'),u=URL.createObjectURL(b);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);done(T('Bild gespeichert','Image saved'))}
     catch(e){done(T('Ging nicht','Did not work'))}},'image/png')}
 function gemSVG(p,t){const c=centroid(p);let m=0;for(const v of p)m=Math.max(m,Math.hypot(v[0]-c[0],v[1]-c[1]));const k=44/(m||1),P=p.map(v=>[50+(v[0]-c[0])*k,50+(v[1]-c[1])*k]);

@@ -3,6 +3,7 @@
 Edelstein-Schleifspiel für den Browser. Quer über den Stein wischen, um ihn zu schneiden. Ziel ist, das Juwel so knapp wie möglich freizulegen, ohne es zu treffen.
 
 Live: https://dashslashtod-wq.github.io/schliff/
+itch.io: https://dashslashtod.itch.io/schliff
 
 ## Was es gibt
 
