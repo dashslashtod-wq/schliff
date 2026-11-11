@@ -15,7 +15,7 @@ Live: https://dashslashtod-wq.github.io/schliff/
 - **Wochen-Event:** wechselt jeden Montag, für alle gleich.
 - **Glücksrad:** einmal am Tag.
 - **Aussehen:** Farbe der Schnittlinie und Licht der Werkbank kaufbar.
-- **Musik:** vier Stücke (8-Bit, Klangfläche, Synthwave, Funk), Lautstärke im Menü.
+- **Musik:** Aufzug- und Kaufhausmusik in vier Stücken (Bossa Nova, Easy Listening, Lounge-Jazz, Walzer), Lautstärke im Menü.
 - **Meisterbrief:** ab Schacht 3 neu anfangen für dauerhaft +50 % pro Brief.
 - **Laden:** Schächte, Hilfsmittel, Werkstatt (Lehrlinge verdienen auch offline).
 - **Vitrine:** Tagessteine, Sammlung aller Steinarten, Erfolge mit Belohnung.
@@ -63,7 +63,7 @@ git push origin main main:gh-pages
 | `RUSH_P`, `RUSH_X`, `RUSH_MIN` | Zeitstein: Chance, Preisfaktor, Mindest-Reinheit |
 | `DAILY_X` | Faktor für den Tagesstein |
 | `ACH` | Erfolge und Belohnungen |
-| `SONGS`, `M_STY`, `M_RH` | Musik: Stücke (Tempo, Akkorde, Ablauf), Begleitung je Stil, Melodie-Rhythmen |
+| `SONGS`, `M_STY`, `M_RH` | Musik: Stücke (Tempo, Akkorde, Ablauf, Melodie-Instrument), Begleitung je Stil, Melodie-Rhythmen |
 | `EVS`, `whPrizes`, `COS` | Wochen-Events, Glücksrad-Preise, kaufbares Aussehen |
 
 ## Spielstand
