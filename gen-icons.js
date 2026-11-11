@@ -97,3 +97,19 @@ const og = (u, v) => {
   return ruby(p) || (!cut && rock(p)) || bg;
 };
 render(1200, 630, og, 'og.png');
+
+// Titelbild für itch.io (630 x 500): Stein mit Saphir, oben schon ein Stück abgeschnitten.
+const AR2 = 630 / 500;
+const ring2 = (n, rx, ry, cx, cy, rot, wob) => Array.from({ length: n }, (_, i) => {
+  const a = rot + (i + wob[i % wob.length]) / n * Math.PI * 2;
+  return [cx + Math.cos(a) * rx / AR2, cy + Math.sin(a) * ry];
+});
+const rock2 = faceted(ring2(11, 0.42, 0.42, 0.5, 0.52, 0.5, [0, 0.18, -0.12, 0.1, -0.2, 0.15]), sh => hsl(26 + sh * 10, 14 + sh * 7, 25 + sh * 30));
+const sapphire = faceted(ring2(7, 0.2, 0.22, 0.5, 0.52, 0.2, [0, 0.1, -0.12]), sh => hsl(222, 78, 32 + sh * 42));
+const cover = (u, v) => {
+  const p = [u, v];
+  const cut = (u - 0.5) * AR2 * -0.55 - (v - 0.52) * 0.83 > 0.3;
+  const d = Math.hypot((u - 0.5) * AR2, v - 0.52);
+  return sapphire(p) || (!cut && rock2(p)) || mix(LAMP, BG, Math.min(1, d / 0.7));
+};
+render(630, 500, cover, 'itch-media/cover.png');
