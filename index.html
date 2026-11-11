@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Schliff: slice the rock, free the gem. A new stone every day, the same for everyone. Sell gems, dig deeper, earn while you are away.">
+<meta name="description" content="Gemsmith: slice the rock, free the gem. A new stone every day, the same for everyone. Sell gems, dig deeper, earn while you are away.">
 <meta name="theme-color" content="#1d2440">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Schliff">
-<meta property="og:title" content="Schliff">
+<meta name="apple-mobile-web-app-title" content="Gemsmith">
+<meta property="og:title" content="Gemsmith">
 <meta property="og:description" content="Slice the rock, free the gem. A new stone every day, the same for everyone.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://dashslashtod-wq.github.io/schliff/">
@@ -24,7 +24,7 @@
 </head>
 <body>
 <meta name="claude:viewport-fit-sides" content="cover">
-<title>Schliff</title>
+<title>Gemsmith</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
 <style>
 /* Layout: one-screen workbench. Slim header with mode switch, the stone under a warm lamp fills the middle, chunky tool tray at the bottom. */
@@ -275,7 +275,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
 
 <div class="app">
   <header class="top">
-    <h1 class="logo">Schliff</h1>
+    <h1 class="logo">Gemsmith</h1>
     <div class="top-right">
       <span class="streak" id="streak"></span>
       <button class="collect" id="collect" hidden></button>
@@ -412,7 +412,7 @@ a.btn{display:block;text-align:center;text-decoration:none;color:var(--ink)}
     <textarea id="saveTxt" hidden aria-label="Spielstand-Code" spellcheck="false"></textarea>
     <p class="note" id="saveMsg" role="status"></p>
     <div class="wrap" id="supportBox">
-    <h2 data-en="Support Schliff">Schliff unterstützen</h2>
+    <h2 data-en="Support Gemsmith">Gemsmith unterstützen</h2>
     <p class="note" data-en="Liked it? Rate the game on itch.io, leave a comment or send a small donation. That helps a lot.">Gefällt dir das Spiel? Bewerte es auf itch.io, schreib einen Kommentar oder schick eine kleine Spende. Das hilft sehr.</p>
     <div class="set-row"><a class="btn" id="itchLink" href="https://dashslashtod.itch.io/schliff" target="_blank" rel="noopener" data-en="Open itch.io page">Zur itch.io-Seite</a></div>
     </div>
@@ -439,7 +439,7 @@ const lsDel=k=>{try{STORE?STORE.removeItem(k):localStorage.removeItem(k)}catch(e
 const TAU=Math.PI*2, $=id=>document.getElementById(id);
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 /* ---------- Sprache: gespeicherte Wahl, sonst Browsersprache (Deutsch nur bei de-*) ---------- */
-const LANG=(()=>{try{const l=JSON.parse(lsGet('schliff.v1')||'{}').lang;if(l==='de'||l==='en')return l}catch(e){}return/^de\b/i.test(navigator.language||'')?'de':'en'})();
+const LANG=(()=>{try{const l=JSON.parse(lsGet('schliff.v1')||'{}').lang;if(l==='de'||l==='en')return l}catch(e){}return'en'})();
 const EN=LANG==='en',T=(de,en)=>EN?en:de;
 try{document.documentElement.lang=LANG}catch(e){}
 if(EN){for(const e of document.querySelectorAll('[data-en]'))e.innerHTML=e.dataset.en;
@@ -1111,8 +1111,8 @@ function refreshHud(){const R=cur();if(!R)return;const t=R.stone.type,tr=tier(t)
 
 function shareText(R){const d=save.days[R.key],t=R.stone.type,g=GRADES[gradeIdx(d.s)],s=streak(),full=Math.round(d.s/20);
   const bar='◆'.repeat(full)+'◇'.repeat(5-full),url=CG?'':'\n'+ITCH_URL;
-  if(EN)return`Schliff · Day ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)}% · ${g[1]}\n${d.u} ${d.u===1?'cut':'cuts'} · ${d.c?d.c+(d.c===1?' crack':' cracks'):'no cracks'}`+(s>1?`\nStreak: ${s} days`:'')+url;
-  return`Schliff · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+url}
+  if(EN)return`Gemsmith · Day ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)}% · ${g[1]}\n${d.u} ${d.u===1?'cut':'cuts'} · ${d.c?d.c+(d.c===1?' crack':' cracks'):'no cracks'}`+(s>1?`\nStreak: ${s} days`:'')+url;
+  return`Gemsmith · Tag ${dayNo(R.key)}\n${t.n} ${fmt(R.stone.ct)} ct\n${bar} ${fmt(d.s)} % · ${g[1]}\n${d.u} Schnitte · ${d.c?d.c+(d.c===1?' Riss':' Risse'):'kein Riss'}`+(s>1?`\nSerie: ${s} Tage`:'')+url}
 
 function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cutsMax-R.cutsLeft;
   const cracks=R.cracks?`<span class="bad">${R.cracks} ${R.cracks===1?T('Riss','crack'):T('Risse','cracks')}</span>`:T('kein Riss','no cracks');
@@ -1168,7 +1168,7 @@ function shareCanvas(R){const d=save.days[R.key],t=R.stone.type,tr=tier(t),c=doc
   x.fillStyle='rgba(255,255,255,.18)';x.beginPath();P.forEach((v,i)=>{const X=540+(v[0]-540)*.5,Y=520+(v[1]-520)*.5;i?x.lineTo(X,Y):x.moveTo(X,Y)});x.closePath();x.fill();
   x.strokeStyle='rgba(255,255,255,.75)';x.lineWidth=5;x.beginPath();P.forEach((v,i)=>i?x.lineTo(v[0],v[1]):x.moveTo(v[0],v[1]));x.closePath();x.stroke();
   /* Text */
-  x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff8ea';x.font='700 92px '+FD;x.fillText('Schliff',540,120);
+  x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff8ea';x.font='700 92px '+FD;x.fillText('Gemsmith',540,120);
   x.fillStyle='#ffc94d';x.save();x.translate(540,126);x.rotate(-.14);x.fillRect(-170,-5,340,10);x.restore();
   x.font='700 40px '+FD;const lab=TIER[tr].toUpperCase(),w=x.measureText(lab).width+64;x.fillStyle=tcol;x.beginPath();
   x.moveTo(540-w/2+32,186);x.lineTo(540+w/2-32,186);x.arc(540+w/2-32,218,32,-Math.PI/2,Math.PI/2);x.lineTo(540-w/2+32,250);x.arc(540-w/2+32,218,32,Math.PI/2,Math.PI*1.5);x.closePath();x.fill();
@@ -1178,10 +1178,10 @@ function shareCanvas(R){const d=save.days[R.key],t=R.stone.type,tr=tier(t),c=doc
   x.fillStyle='#b6bddd';x.font='500 32px '+FD;if(!CG)x.fillText(ITCH_URL.replace('https://',''),540,1028);
   return c}
 function shareImage(R,btn){let c;try{c=shareCanvas(R)}catch(e){return}
-  const name=`schliff-${T('tag','day')}-${dayNo(R.key)}.png`,done=m=>{btn.textContent=m;setTimeout(()=>{btn.textContent=T('Als Bild teilen','Share as image')},2200)};
+  const name=`gemsmith-${T('tag','day')}-${dayNo(R.key)}.png`,done=m=>{btn.textContent=m;setTimeout(()=>{btn.textContent=T('Als Bild teilen','Share as image')},2200)};
   c.toBlob(b=>{if(!b){done(T('Ging nicht','Did not work'));return}
     let f=null;try{f=new File([b],name,{type:'image/png'})}catch(e){}
-    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Schliff',text:CG?'Schliff':ITCH_URL}).catch(()=>{});return}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Gemsmith',text:CG?'Gemsmith':ITCH_URL}).catch(()=>{});return}
     try{const a=document.createElement('a'),u=URL.createObjectURL(b);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);done(T('Bild gespeichert','Image saved'))}
     catch(e){done(T('Ging nicht','Did not work'))}},'image/png')}
 function gemSVG(p,t){const c=centroid(p);let m=0;for(const v of p)m=Math.max(m,Math.hypot(v[0]-c[0],v[1]-c[1]));const k=44/(m||1),P=p.map(v=>[50+(v[0]-c[0])*k,50+(v[1]-c[1])*k]);

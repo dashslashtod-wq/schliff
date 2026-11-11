@@ -1,4 +1,4 @@
-# Schliff auf itch.io
+# Gemsmith auf itch.io
 
 Seite: https://dashslashtod.itch.io/schliff
 
@@ -18,7 +18,7 @@ Das erzeugt `schliff-itch.zip` (nicht in Git). Titelbild: `itch-media/cover.png`
 
 | Feld | Wert |
 | --- | --- |
-| Title | Schliff |
+| Title | Gemsmith |
 | Project URL | `schliff` |
 | Short description or tagline | Slice the rock, free the gem. A new stone every day. |
 | Classification | Games |

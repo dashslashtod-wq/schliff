@@ -15,12 +15,12 @@ const head = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="Schliff: slice the rock, free the gem. A new stone every day, the same for everyone. Sell gems, dig deeper, earn while you are away.">
+<meta name="description" content="Gemsmith: slice the rock, free the gem. A new stone every day, the same for everyone. Sell gems, dig deeper, earn while you are away.">
 <meta name="theme-color" content="#1d2440">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Schliff">
-<meta property="og:title" content="Schliff">
+<meta name="apple-mobile-web-app-title" content="Gemsmith">
+<meta property="og:title" content="Gemsmith">
 <meta property="og:description" content="Slice the rock, free the gem. A new stone every day, the same for everyone.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE}">

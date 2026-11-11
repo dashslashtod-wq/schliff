@@ -1,6 +1,6 @@
 {
-  "name": "Schliff",
-  "short_name": "Schliff",
+  "name": "Gemsmith",
+  "short_name": "Gemsmith",
   "description": "Slice the rock, free the gem. A new stone every day.",
   "start_url": "./",
   "scope": "./",

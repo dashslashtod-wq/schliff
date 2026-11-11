@@ -1,4 +1,4 @@
-# Schliff auf CrazyGames
+# Gemsmith auf CrazyGames
 
 Paket bauen:
 
@@ -30,7 +30,7 @@ Das erzeugt `schliff-crazygames.zip` (nicht in Git). Titelbilder liegen in `craz
 
 | Feld | Wert |
 | --- | --- |
-| Game name | Schliff |
+| Game name | Gemsmith |
 | Engine / Type | HTML5 |
 | Upload | `schliff-crazygames.zip` |
 | Progress save | **Data module** auswählen, sonst ist das Speichern abgeschaltet |

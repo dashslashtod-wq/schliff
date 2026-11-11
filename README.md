@@ -1,4 +1,6 @@
-# Schliff
+# Gemsmith
+
+Früher „Schliff“. Ordner, Repo und Adressen heißen weiter `schliff`, der Spielstand-Schlüssel bleibt `schliff.v1`.
 
 Edelstein-Schleifspiel für den Browser. Quer über den Stein wischen, um ihn zu schneiden. Ziel ist, das Juwel so knapp wie möglich freizulegen, ohne es zu treffen.
 
