@@ -424,7 +424,8 @@ save.money=+save.money||0;save.shaft=Math.max(0,Math.min(9,save.shaft|0));save.s
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
 /* Anonyme Zählung (GoatCounter, ohne Cookies). Läuft nur, wenn die gehostete Seite das Zählskript geladen hat. */
 const track=n=>{try{const g=window.goatcounter;if(g&&g.count)g.count({path:'ev-'+n,title:n,event:true})}catch(e){}};
-/* Öffentliche Supabase-Schlüssel sind für Browser gedacht; RLS begrenzt den Zugriff. */
+/* Öffentliche Supabase-Schlüssel sind für Browser gedacht; RLS begrenzt den Zugriff.
+   Spalte purity ist integer: gespeichert wird Reinheit × 10 (87,4 % = 874). */
 const BOARD_URL='https://akzcegzdeyotxfehjkdt.supabase.co',BOARD_KEY='sb_publishable_zANVJxDkT2xO7k-QrWhD5w_Jqbx_mu2';
 const BOARD_NAME_KEY='schliff.board.name',BOARD_DEVICE_KEY='schliff.board.device';
 let BOARD_DEVICE_ID='';try{BOARD_DEVICE_ID=localStorage.getItem(BOARD_DEVICE_KEY)||crypto.randomUUID();localStorage.setItem(BOARD_DEVICE_KEY,BOARD_DEVICE_ID)}catch(e){}
@@ -444,7 +445,7 @@ async function loadLeaderboard(){const seq=++boardRead,today=dayKey(),list=$('bo
     if(!rows.length){const li=document.createElement('li');li.className='board-empty';li.textContent=T('Heute gibt es noch keine Einträge.','No entries for today yet.');list.append(li)}
     else rows.forEach((r,i)=>{const li=document.createElement('li'),rank=document.createElement('span'),name=document.createElement('span'),metrics=document.createElement('span'),score=document.createElement('strong'),details=document.createElement('small');
       li.className='board-row';rank.className='board-rank';rank.textContent=String(i+1)+'.';name.className='board-player';name.textContent=String(r.name||'');metrics.className='board-metrics';
-      score.textContent=fmt(Number(r.purity)||0)+T(' %','%');details.textContent=fmtInt(Number(r.cuts)||0)+' '+T('Schnitte','cuts')+' · '+fmtInt(Number(r.cracks)||0)+' '+T('Risse','cracks');
+      score.textContent=fmt((Number(r.purity)||0)/10)+T(' %','%');const nc=Number(r.cuts)||0,nk=Number(r.cracks)||0;details.textContent=fmtInt(nc)+' '+(nc===1?T('Schnitt','cut'):T('Schnitte','cuts'))+' · '+fmtInt(nk)+' '+(nk===1?T('Riss','crack'):T('Risse','cracks'));
       metrics.append(score,details);li.append(rank,name,metrics);list.append(li)});
     $('boardStatus').textContent=boardAlreadySubmitted?T('Dein Ergebnis steht in der Liste.','Your score is on the leaderboard.'):
       save.days[today]?T('Dein Tagesstein ist bereit zum Eintragen.','Your daily stone is ready to submit.'):
@@ -454,7 +455,7 @@ async function loadLeaderboard(){const seq=++boardRead,today=dayKey(),list=$('bo
 async function submitDailyScore(e){e.preventDefault();const today=dayKey(),d=save.days[today],name=$('boardName').value.trim();
   if(!d||!name||!BOARD_DEVICE_ID)return;try{localStorage.setItem(BOARD_NAME_KEY,name)}catch(e){}
   boardSubmitting=true;boardSyncButton();$('boardStatus').textContent=T('Ergebnis wird gesendet…','Submitting score…');
-  try{const r=await fetch(BOARD_URL+'/rest/v1/scores',{method:'POST',headers:{...boardHeaders,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({day:today,device_id:BOARD_DEVICE_ID,name,purity:d.s,cuts:d.u,cracks:d.c})});
+  try{const r=await fetch(BOARD_URL+'/rest/v1/scores',{method:'POST',headers:{...boardHeaders,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({day:today,device_id:BOARD_DEVICE_ID,name,purity:Math.round(d.s*10),cuts:d.u,cracks:d.c})});
     if(r.status===409){boardAlreadySubmitted=true;await loadLeaderboard();$('boardStatus').textContent=T('Für heute ist bereits ein Ergebnis eingetragen.','A score has already been submitted for today.');return}
     if(!r.ok)throw new Error('Score submission failed');boardAlreadySubmitted=true;await loadLeaderboard();$('boardStatus').textContent=T('Ergebnis eingetragen.','Score submitted.');
   }catch(err){$('boardStatus').textContent=T('Senden fehlgeschlagen. Prüfe die Verbindung und versuche es erneut.','Could not submit. Check your connection and try again.')}
