@@ -192,10 +192,15 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .slot.today{border-color:var(--brass);color:var(--brass)}
 .slot .q{font-family:var(--f-display);font-weight:700;font-size:1.5rem;line-height:1}
 .note{margin:0;color:var(--ink-dim);font-size:.88rem;max-width:60ch}
+.vols{display:flex;gap:10px 18px;flex-wrap:wrap}
+.vols label{flex:1 1 220px;display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.85rem;color:var(--ink-dim)}
+.vols input{width:100%;accent-color:var(--brass)}
+.swatch{flex:none;width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 3px rgba(255,255,255,.25)}
+.whres{font-family:var(--f-display);font-weight:700;font-size:1.5rem;color:var(--brass)}
 .slot.cx b{font-family:var(--f-body);font-weight:800;font-size:.7rem;overflow-wrap:anywhere}
 .slot.cx svg{width:46%}
 .tabs button.dot{position:relative}
-.tabs button.dot::after{content:"";position:absolute;top:6px;right:8px;width:10px;height:10px;border-radius:50%;background:var(--crack);box-shadow:0 0 0 2px var(--bench-2)}
+.tabs button.dot::after{content:"";position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--crack);box-shadow:0 0 0 2px var(--bench-2)}
 .shop-list .pg{font-family:var(--f-num);font-weight:600;font-size:.78rem;color:var(--ink)}
 .shop-list li.got{opacity:.6}
 #menuView{overflow-y:auto;gap:14px;padding-bottom:8px}
@@ -280,6 +285,11 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
   </section>
 
   <section class="view" id="jobsView" hidden>
+    <h2 data-en="This week">Diese Woche</h2>
+    <p class="note" id="evInfo"></p>
+    <h2 data-en="Lucky wheel">Glücksrad</h2>
+    <p class="note" id="whInfo"></p>
+    <div class="set-row"><button class="btn primary" id="whBtn"></button></div>
     <h2 data-en="Daily tasks">Tagesaufgaben</h2>
     <p class="note" id="dqNote"></p>
     <ul class="shop-list" id="dqList"></ul>
@@ -296,6 +306,8 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     <ul class="shop-list" id="shafts"></ul>
     <h2 data-en="Tools">Hilfsmittel</h2>
     <ul class="shop-list" id="tools"></ul>
+    <h2 data-en="Looks">Aussehen</h2>
+    <ul class="shop-list" id="cosList"></ul>
     <h2 data-en="Master's certificate">Meisterbrief</h2>
     <p class="note" id="presInfo"></p>
     <div class="set-row"><button class="btn" id="presBtn"></button></div>
@@ -320,6 +332,10 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
       <button class="btn" id="sndBtn" aria-pressed="true">Geräusche</button>
       <button class="btn" id="langBtn" data-en="Auf Deutsch">In English</button>
       <button class="btn" id="trkBtn"></button>
+    </div>
+    <div class="vols">
+      <label for="volM"><span data-en="Music volume">Lautstärke Musik</span><input type="range" id="volM" min="0" max="100" step="5"></label>
+      <label for="volS"><span data-en="Sound effects volume">Lautstärke Geräusche</span><input type="range" id="volS" min="0" max="100" step="5"></label>
     </div>
     <h2 data-en="How to play">So geht's</h2>
     <ul class="help">
@@ -454,7 +470,7 @@ const IDLE=[
 ];
 /* Meisterbrief: jeder gibt dauerhaft +50 % auf Preise, Lehrlinge und Auftragslohn */
 const pm=()=>1+.5*(save.pres||0);
-const idleRate=()=>IDLE[0].rate[save.up.work]*SHAFTS[save.shaft].mult*pm();
+const idleRate=()=>IDLE[0].rate[save.up.work]*SHAFTS[save.shaft].mult*pm()*(EV().k==='idle'?2:1);
 const idleHours=()=>IDLE[1].hours[save.up.store];
 const idleCap=()=>idleRate()*idleHours();
 function accrue(){const now=Date.now();if(!save.idleT||now<save.idleT)save.idleT=now;
@@ -462,7 +478,7 @@ function accrue(){const now=Date.now();if(!save.idleT||now<save.idleT)save.idleT
 const fmtDur=ms=>{const m=Math.floor(ms/6e4),h=Math.floor(m/60);return h?`${h} h ${m%60} min`:`${m} min`};
 const GBONUS=[2,1.5,1.2,1,1];
 const fmtM=v=>fmtBig(v)+' ◈';
-function price(stone,s,shaft,pol){return Math.max(1,Math.round(stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*pm()*(pol?1+.15*save.up.pol:1)))}
+function price(stone,s,shaft,pol){return Math.max(1,Math.round((EV().k==='gem'&&EV().ti===stone.ti?3:1)*stone.ct*stone.type.v*Math.pow(s/100,2)*GBONUS[gradeIdx(s)]*20*SHAFTS[shaft].mult*pm()*(pol?1+.15*save.up.pol:1)))}
 const DAILY_X=10;
 const streakBonus=()=>1+Math.min(10,streak())*.1;
 let moneyShown=-1,moneyHold=0,moneyAnim=0;
@@ -543,49 +559,52 @@ let ac=null;
 function actx(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended'&&!document.hidden)ac.resume();return ac}catch(e){return null}}
 function audio(){const c=actx();if(c&&save.mus)musicStart();return save.snd?c:null}
 
-/* ---------- Musik: drei Stücke, komplett im Browser erzeugt. Die Melodie wird bei jedem Durchgang neu gewürfelt. ---------- */
-const MUS={on:false,timer:0,step:0,bar:0,next:0,song:0,out:null,keys:null,nz:null,pi:4,rh:null};
-const mtof=m=>440*Math.pow(2,(m-69)/12);
+/* ---------- Musik: vier Stücke in vier Stilen (8-Bit, Klangfläche, Synthwave, Funk), komplett im Browser erzeugt.
+   Die Melodie wird bei jedem Durchgang neu gewürfelt. ---------- */
+const MUS={on:false,timer:0,step:0,bar:0,next:0,song:0,out:null,keys:null,fx:null,nz:null,pi:4,rh:null,ph:null};
+const mtof=m=>440*Math.pow(2,(m-69)/12),musVol=()=>.37*save.vm;
 /* Akkord: [Bass-Grundton, Akkordtöne, Septime als Halbtonabstand]. form: je Buchstabe 4 Takte.
-   i = nur Schlagzeug und Bass, A/B = mit Akkorden, a/b = dazu Melodie, x = Ruhepunkt ohne Schlagzeug */
+   i = Einstieg ohne Akkorde, A/B = mit Akkorden, a/b = dazu Melodie, x = Ruhepunkt ohne Schlagzeug */
 const SONGS=[
+  {n:'Pixelmine',bpm:138,sw:0,style:'chip',form:'iAaBbaxaBb',sc:[72,74,76,79,81,84,86,88],
+    A:[[36,[60,64,67],11],[43,[59,62,67],10],[45,[60,64,69],10],[41,[60,65,69],11]],
+    B:[[41,[60,65,69],11],[43,[59,62,67],10],[40,[59,64,67],10],[45,[60,64,69],10]]},
+  {n:'Kristallhöhle',bpm:64,sw:0,style:'amb',form:'xxxxxxxx',sc:[62,64,66,69,71,74,76,78,81],
+    A:[[38,[57,61,64,66],11],[35,[54,57,62,66],10],[43,[55,59,62,66],11],[45,[57,61,64,69],10]],
+    B:[[38,[57,61,64,66],11],[35,[54,57,62,66],10],[43,[55,59,62,66],11],[45,[57,61,64,69],10]]},
+  {n:'Neonschacht',bpm:108,sw:0,style:'wave',form:'iAaBbxaab',sc:[69,72,74,76,79,81,84],
+    A:[[45,[57,60,64],10],[41,[57,60,65],11],[36,[55,60,64],11],[43,[55,59,62],10]],
+    B:[[38,[57,62,65],10],[45,[57,60,64],10],[41,[57,60,65],11],[40,[56,59,64],10]]},
   {n:'Werkbank-Funk',bpm:102,sw:.17,style:'funk',form:'iAaBbaxaBb',sc:[64,67,69,71,74,76,79,81,83],
     A:[[40,[55,59,62,66],10],[45,[55,59,61,66],10],[36,[55,59,62,64],11],[35,[57,63,66,74],10]],
-    B:[[45,[55,60,64,67],10],[38,[54,57,60,64],10],[43,[55,59,62,66],11],[35,[57,63,66,69],10]]},
-  {n:'Schacht-Disco',bpm:118,sw:0,style:'disco',form:'iAaabBaxab',sc:[69,72,74,76,79,81,84,86],
-    A:[[45,[57,60,64,67],10],[38,[57,60,65,69],10],[41,[57,60,64,65],11],[40,[56,62,64,68],10]],
-    B:[[41,[57,60,64,65],11],[43,[55,59,62,67],10],[45,[57,60,64,67],10],[40,[56,62,64,68],10]]},
-  {n:'Feierabend',bpm:84,sw:.22,style:'lofi',form:'iAabBxaAb',sc:[69,71,74,76,78,81,83,86],
-    A:[[38,[57,61,64,66],11],[35,[57,62,66,69],10],[43,[54,59,62,66],11],[45,[55,61,64,67],10]],
-    B:[[40,[55,59,62,66],10],[45,[55,61,64,67],10],[42,[57,61,64,69],10],[35,[57,62,66,69],10]]}
+    B:[[45,[55,60,64,67],10],[38,[54,57,60,64],10],[43,[55,59,62,66],11],[35,[57,63,66,69],10]]}
 ];
-/* Bass je Stil: [Schritt, Halbtöne über dem Grundton (S = Septime), Länge in Schritten] */
-const M_BASS={
-  funk:[[[0,0,2],[3,0,1],[4,12,1],[6,'S',1],[7,12,1],[10,0,2],[14,7,1],[15,'S',1]],[[0,0,2],[3,12,1],[6,0,1],[7,7,1],[10,'S',1],[11,12,1],[14,0,1]],
-        [[0,0,2],[3,0,1],[4,12,1],[6,7,1],[7,'S',1],[10,12,2],[14,7,1]],[[0,0,2],[3,12,1],[6,0,1],[8,'S',1],[10,12,1],[12,0,1],[14,7,1],[15,'S',1]]],
-  disco:[[[0,0,1],[2,12,1],[4,0,1],[6,12,1],[8,0,1],[10,12,1],[12,0,1],[14,12,1]],[[0,0,1],[2,12,1],[4,0,1],[6,12,1],[8,0,1],[10,12,1],[12,7,1],[14,'S',1]],
-         [[0,0,1],[2,12,1],[4,7,1],[6,12,1],[8,0,1],[10,12,1],[12,0,1],[14,7,1]],[[0,0,1],[2,12,1],[4,0,1],[6,12,1],[8,0,1],[11,12,1],[12,'S',1],[14,12,1]]],
-  lofi:[[[0,0,6],[10,7,2],[12,0,3]],[[0,0,5],[8,12,2],[12,7,3]],[[0,0,6],[10,'S',2],[12,12,3]],[[0,0,4],[6,7,2],[10,0,2],[14,7,2]]]
-};
+/* Funk-Bass: [Schritt, Halbtöne über dem Grundton (S = Septime), Länge in Schritten] */
+const M_BASS=[[[0,0,2],[3,0,1],[4,12,1],[6,'S',1],[7,12,1],[10,0,2],[14,7,1],[15,'S',1]],[[0,0,2],[3,12,1],[6,0,1],[7,7,1],[10,'S',1],[11,12,1],[14,0,1]],
+  [[0,0,2],[3,0,1],[4,12,1],[6,7,1],[7,'S',1],[10,12,2],[14,7,1]],[[0,0,2],[3,12,1],[6,0,1],[8,'S',1],[10,12,1],[12,0,1],[14,7,1],[15,'S',1]]];
 /* Rhythmen für die Melodie: [Schritt, Länge] */
 const M_RH={
   funk:[[[0,2],[3,1],[4,2],[7,1],[10,1],[11,2]],[[2,1],[4,1],[6,2],[10,3]],[[0,2],[3,1],[6,1],[7,3],[12,2]],[[2,1],[3,1],[6,2],[10,1],[12,3]],[[0,3],[6,1],[8,2],[11,1],[14,2]]],
-  disco:[[[0,2],[4,2],[6,2],[10,2],[12,3]],[[2,2],[6,2],[8,2],[12,4]],[[0,3],[4,1],[6,2],[10,1],[12,2],[14,2]],[[0,4],[6,2],[8,4]]],
-  lofi:[[[0,4],[6,2],[10,4]],[[2,3],[8,2],[12,4]],[[0,6],[10,2],[12,4]],[[4,2],[6,4],[12,3]]]
+  chip:[[[0,2],[2,2],[4,1],[5,1],[6,2],[8,4],[12,2],[14,2]],[[0,1],[1,1],[2,2],[6,2],[8,2],[10,2],[12,4]],[[0,4],[4,2],[6,2],[8,2],[10,2],[12,4]],[[2,2],[4,2],[6,1],[7,1],[8,4],[14,2]]],
+  wave:[[[0,6],[6,2],[8,6],[14,2]],[[0,4],[4,4],[8,8]],[[2,2],[4,4],[10,2],[12,4]],[[0,8],[8,4],[12,4]]]
 };
+/* Ein Ton: Wellenform, Tonhöhe, Dauer, Lautstärke, Einschwingzeit, Ziel */
+function mOsc(t,type,m,dur,v,att,dest,det){const c=ac,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=mtof(m);if(det)o.detune.value=det;
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+att);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.05);return{o,g}}
 function mHit(t,type,f,q,dur,g){const c=ac,s=c.createBufferSource(),fl=c.createBiquadFilter(),gn=c.createGain();s.buffer=MUS.nz;fl.type=type;fl.frequency.value=f;fl.Q.value=q;
   gn.gain.setValueAtTime(g,t);gn.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(fl).connect(gn).connect(MUS.out);s.start(t,Math.random()*.5,dur+.03)}
-function mKick(t,v){const c=ac,o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.11);
+function mKick(t,v,type){const c=ac,o=c.createOscillator(),g=c.createGain();if(type)o.type=type;o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(45,t+.11);
   g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.0001,t+.24);o.connect(g).connect(MUS.out);o.start(t);o.stop(t+.26)}
-function mBass(t,m,dur,soft){const c=ac,o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain(),v=soft?.34:.4;o.type=soft?'triangle':'sawtooth';o.frequency.value=mtof(m);
-  f.type='lowpass';f.Q.value=soft?1:7;f.frequency.setValueAtTime(soft?700:1200,t);f.frequency.exponentialRampToValueAtTime(soft?400:260,t+Math.min(.16,dur));
+function mBass(t,m,dur,v){const c=ac,o=c.createOscillator(),f=c.createBiquadFilter(),g=c.createGain();o.type='sawtooth';o.frequency.value=mtof(m);
+  f.type='lowpass';f.Q.value=7;f.frequency.setValueAtTime(1200,t);f.frequency.exponentialRampToValueAtTime(260,t+Math.min(.16,dur));
   g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.008);g.gain.setValueAtTime(v,t+dur*.65);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
   o.connect(f).connect(g).connect(MUS.out);o.start(t);o.stop(t+dur+.03)}
-function mKey(t,m,dur,v){const c=ac,g=c.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+dur);g.connect(MUS.keys);
-  for(const[k,ty,dt]of[[1,'triangle',-4],[1,'triangle',5],[2,'sine',0]]){const o=c.createOscillator();o.type=ty;o.frequency.value=mtof(m)*k;o.detune.value=dt;o.connect(g);o.start(t);o.stop(t+dur+.03)}}
-function mLead(t,m,dur,soft){const c=ac,o=c.createOscillator(),l=c.createOscillator(),lg=c.createGain(),g=c.createGain();o.type=soft?'sine':'triangle';o.frequency.value=mtof(m);
-  l.frequency.value=5.5;lg.gain.value=soft?3:5;l.connect(lg).connect(o.frequency);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(soft?.11:.13,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-  o.connect(g).connect(MUS.keys);o.start(t);l.start(t);o.stop(t+dur+.03);l.stop(t+dur+.03)}
+function mKey(t,m,dur,v){mOsc(t,'triangle',m,dur,v,.006,MUS.keys,-4);mOsc(t,'triangle',m,dur,v,.006,MUS.keys,5);mOsc(t,'sine',m+12,dur,v*.6,.006,MUS.keys)}
+function mPad(t,m,dur,v,type){mOsc(t,type,m,dur,v,dur*.3,MUS.keys,-7);mOsc(t,type,m,dur,v,dur*.3,MUS.keys,7)}
+function mBell(t,m,v){const a=mOsc(t,'sine',m,1.8,v,.004,MUS.keys);a.g.connect(MUS.fx);mOsc(t,'sine',m+12,.7,v*.35,.004,MUS.keys);mOsc(t,'sine',m+19,.35,v*.15,.004,MUS.keys)}
+function mLead(t,m,dur,sty){const kind=sty==='chip'?'square':sty==='wave'?'sawtooth':'triangle',v=sty==='chip'?.055:sty==='wave'?.05:.13,a=mOsc(t,kind,m,dur,v,.012,MUS.keys);
+  const l=ac.createOscillator(),lg=ac.createGain();l.frequency.value=sty==='chip'?7:5.5;lg.gain.value=sty==='chip'?8:5;l.connect(lg).connect(a.o.frequency);l.start(t+dur*.3);l.stop(t+dur+.05);
+  if(sty==='wave')a.g.connect(MUS.fx)}
 /* Melodie eines Takts würfeln: Rhythmus alle zwei Takte neu, Tonhöhe wandert in kleinen Schritten, betonte Töne rasten auf Akkordtöne */
 function mPhrase(S,C,bar){if(!MUS.rh||bar%2===0){const bank=M_RH[S.style];MUS.rh=bank[Math.floor(Math.random()*bank.length)]}
   const pcs=C[1].map(m=>m%12),out=[];
@@ -593,46 +612,61 @@ function mPhrase(S,C,bar){if(!MUS.rh||bar%2===0){const bank=M_RH[S.style];MUS.rh
     if(s%4===0&&!pcs.includes(S.sc[MUS.pi]%12)){for(const d of[1,-1,2,-2]){const j=MUS.pi+d;if(j>=0&&j<S.sc.length&&pcs.includes(S.sc[j]%12)){MUS.pi=j;break}}}
     out.push([s,S.sc[MUS.pi],l])}
   return out}
-function mStep(S,st,bar,s,t){const sec=S.form[Math.floor(bar/4)%S.form.length],C=(sec==='B'||sec==='b'?S.B:S.A)[bar%4],x=sec==='x',drums=!x,lead=sec==='a'||sec==='b'||x,keys=sec!=='i';
-  const fill=drums&&bar%4===3,sty=S.style,soft=sty==='lofi';
-  if(s===0)MUS.ph=lead?mPhrase(S,C,bar):null;
-  if(drums){
-    if(sty==='funk'){if(s===0||s===7||s===10||(fill&&s===14))mKick(t,.95);if(s===4||s===12){mHit(t,'bandpass',1900,.8,.13,.42);mHit(t,'highpass',5000,.5,.07,.14)}
+/* Begleitung je Stil */
+const M_STY={
+  /* 8-Bit: Rechteckwellen, schnelle Akkordbrechung, Dreieck-Bass */
+  chip(S,C,st,bar,s,t,drums,keys,fill){
+    if(drums){if(s%4===0)mKick(t,.6,'triangle');if(s===4||s===12)mHit(t,'highpass',2500,.5,.09,.22);if(fill&&s>=12)mHit(t,'highpass',2500,.5,.05,.16);
+      if(s%4===2)mHit(t,'highpass',9000,.5,.025,.07);
+      if(s%2===0)mOsc(t,'triangle',C[0]+12+[0,12,0,12,7,12,0,12][s/2],st*1.7,.3,.005,MUS.out)}
+    if(keys){const ch=C[1];mOsc(t,'square',ch[s%ch.length]+12*(Math.floor(s/ch.length)%2),st*.85,.028,.003,MUS.keys)}},
+  /* Klangfläche: lange Flächen, Glocken mit Echo, kein Schlagzeug */
+  amb(S,C,st,bar,s,t){
+    if(s===0){for(const m of C[1]){mPad(t,m,st*18,.04,'sine');mPad(t,m+12,st*18,.012,'triangle')}mOsc(t,'sine',C[0],st*16,.26,.4,MUS.out);mBell(t,C[1][bar%C[1].length]+12,.07)}
+    else if(Math.random()<.2){MUS.pi=Math.max(0,Math.min(S.sc.length-1,MUS.pi+[-2,-1,1,2,3,-3][Math.floor(Math.random()*6)]));mBell(t,S.sc[MUS.pi]+(Math.random()<.3?12:0),.035+Math.random()*.04)}},
+  /* Synthwave: gerader Bass in Sechzehnteln, breite Sägezahn-Fläche, Snare mit langem Ausklang */
+  wave(S,C,st,bar,s,t,drums,keys,fill,x){
+    if(drums){if(s%4===0)mKick(t,.95);if(s===4||s===12){mHit(t,'bandpass',1200,.6,.3,.34);mHit(t,'highpass',3500,.5,.2,.14)}
+      if(fill&&s>=13)mHit(t,'bandpass',900+s*90,.8,.1,.2);
+      mHit(t,'highpass',8500,.6,s%4===2?.12:.03,s%4===2?.07:.03);
+      mBass(t,C[0]+(s%8===6?12:0),st*.8,s%4===0?.34:.24)}
+    if(keys&&s===0)for(const m of C[1]){mPad(t,m,st*(x?17:16),.03,'sawtooth');if(x)mPad(t,m+12,st*17,.012,'sawtooth')}},
+  /* Funk: geshuffelte Sechzehntel, kurze Akkord-Stiche */
+  funk(S,C,st,bar,s,t,drums,keys,fill,x){
+    if(drums){if(s===0||s===7||s===10||(fill&&s===14))mKick(t,.95);if(s===4||s===12){mHit(t,'bandpass',1900,.8,.13,.42);mHit(t,'highpass',5000,.5,.07,.14)}
       if(fill&&(s===13||s===15))mHit(t,'bandpass',1900,.8,.07,.2);
-      if(s===14&&bar%2)mHit(t,'highpass',7500,.6,.2,.1);else mHit(t,'highpass',8000,.6,.035,(s%2?.04:s%4?.08:.11)*(.8+Math.random()*.4))}
-    else if(sty==='disco'){if(s%4===0)mKick(t,.95);if(s===4||s===12){mHit(t,'bandpass',1500,.7,.16,.36);mHit(t,'highpass',4500,.5,.09,.16)}
-      if(fill&&s>=12&&s%2===0)mHit(t,'bandpass',2200,.8,.06,.2);
-      if(s%4===2)mHit(t,'highpass',7000,.6,.14,.11);else mHit(t,'highpass',8500,.6,.03,s%2?.035:.06)}
-    else{if(s===0||s===10||(fill&&s===7))mKick(t,.8);if(s===4||s===12)mHit(t,'bandpass',1300,1.2,.1,.24);if(fill&&s===15)mHit(t,'bandpass',1300,1.2,.06,.12);
-      if(s%2===0)mHit(t,'highpass',6500,.6,.04,(s%4?.035:.06)*(.7+Math.random()*.6))}
-    const pat=M_BASS[sty][(bar+(Math.floor(bar/4)%2?1:0))%4];for(const b of pat)if(b[0]===s)mBass(t,C[0]+(b[1]==='S'?C[2]:b[1]),b[2]*st*.92,soft)}
-  if(keys){
-    if(x){if(s===0)for(const m of C[1])mKey(t,m,st*15,.06)}
-    else if(sty==='funk'){if(s===3||s===6||s===13)for(const m of C[1])mKey(t,m,.13,.085);if(s===10)for(const m of C[1])mKey(t,m,.34,.075)}
-    else if(sty==='disco'){if(s%4===2)for(const m of C[1])mKey(t,m,.11,.07);if(s===0&&bar%4===0)for(const m of C[1])mKey(t,m+12,st*10,.03)}
-    else{if(s===0)for(const m of C[1])mKey(t,m,st*9,.07);if(s===10)for(const m of C[1])mKey(t,m,st*4,.045)}}
-  if(MUS.ph)for(const n of MUS.ph)if(n[0]===s)mLead(t,n[1],n[2]*st*.95,soft)}
+      if(s===14&&bar%2)mHit(t,'highpass',7500,.6,.2,.1);else mHit(t,'highpass',8000,.6,.035,(s%2?.04:s%4?.08:.11)*(.8+Math.random()*.4));
+      for(const b of M_BASS[(bar+(Math.floor(bar/4)%2?1:0))%4])if(b[0]===s)mBass(t,C[0]+(b[1]==='S'?C[2]:b[1]),b[2]*st*.92,.4)}
+    if(keys){if(x){if(s===0)for(const m of C[1])mKey(t,m,st*15,.06)}
+      else{if(s===3||s===6||s===13)for(const m of C[1])mKey(t,m,.13,.085);if(s===10)for(const m of C[1])mKey(t,m,.34,.075)}}}
+};
+function mStep(S,st,bar,s,t){const sec=S.form[Math.floor(bar/4)%S.form.length],C=(sec==='B'||sec==='b'?S.B:S.A)[bar%4],x=sec==='x',drums=!x,keys=sec!=='i';
+  if(s===0)MUS.ph=(sec==='a'||sec==='b'||x)&&M_RH[S.style]?mPhrase(S,C,bar):null;
+  M_STY[S.style](S,C,st,bar,s,t,drums,keys,drums&&bar%4===3,x);
+  if(MUS.ph)for(const n of MUS.ph)if(n[0]===s)mLead(t,n[1],n[2]*st*.95,S.style)}
 function mTick(){if(!ac||!MUS.on||ac.state!=='running')return;if(MUS.next<ac.currentTime)MUS.next=ac.currentTime+.06;
   while(MUS.next<ac.currentTime+.2){const S=SONGS[MUS.song],st=60/S.bpm/4;mStep(S,st,MUS.bar,MUS.step,MUS.next+(MUS.step%2?S.sw*st:0));MUS.next+=st;
-    if(++MUS.step>=16){MUS.step=0;if(++MUS.bar>=S.form.length*4)musicNext(st*10)}}}
+    if(++MUS.step>=16){MUS.step=0;if(++MUS.bar>=S.form.length*4)musicNext(st*12)}}}
 /* Nächstes Stück, mit kurzer Pause davor */
 function musicNext(gap){MUS.song=(MUS.song+1)%SONGS.length;MUS.bar=0;MUS.step=0;MUS.rh=null;MUS.pi=4;MUS.ph=null;if(ac)MUS.next=Math.max(MUS.next,ac.currentTime)+(gap||.3);try{trackLabel()}catch(e){}}
 function musicStart(){if(MUS.on||!save.mus)return;const c=actx();if(!c)return;
   try{if(!MUS.out){const comp=c.createDynamicsCompressor();comp.connect(c.destination);MUS.out=c.createGain();MUS.out.gain.value=.0001;MUS.out.connect(comp);
       MUS.keys=c.createBiquadFilter();MUS.keys.type='lowpass';MUS.keys.frequency.value=2600;MUS.keys.connect(MUS.out);
-      const b=c.createBuffer(1,c.sampleRate,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;MUS.nz=b;
+      /* Echo */
+      const d=c.createDelay(1),fb=c.createGain(),wet=c.createGain();d.delayTime.value=.36;fb.gain.value=.38;wet.gain.value=.5;MUS.fx=c.createGain();MUS.fx.connect(d);d.connect(fb);fb.connect(d);d.connect(wet);wet.connect(MUS.out);
+      const b=c.createBuffer(1,c.sampleRate,c.sampleRate),nd=b.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;MUS.nz=b;
       MUS.song=Math.floor(Math.random()*SONGS.length)}
-    MUS.on=true;MUS.step=0;MUS.bar=0;MUS.rh=null;MUS.next=c.currentTime+.1;MUS.out.gain.cancelScheduledValues(c.currentTime);MUS.out.gain.setTargetAtTime(.26,c.currentTime,.25);
+    MUS.on=true;MUS.step=0;MUS.bar=0;MUS.rh=null;MUS.next=c.currentTime+.1;MUS.out.gain.cancelScheduledValues(c.currentTime);MUS.out.gain.setTargetAtTime(musVol(),c.currentTime,.25);
     clearInterval(MUS.timer);MUS.timer=setInterval(mTick,40);try{trackLabel()}catch(e){}}catch(e){MUS.on=false}}
 function musicStop(){MUS.on=false;clearInterval(MUS.timer);if(ac&&MUS.out){MUS.out.gain.cancelScheduledValues(ac.currentTime);MUS.out.gain.setTargetAtTime(.0001,ac.currentTime,.08)}}
 document.addEventListener('visibilitychange',()=>{if(!ac)return;try{if(document.hidden)ac.suspend();else ac.resume()}catch(e){}});
 document.addEventListener('pointerdown',()=>{if(save.mus&&!MUS.on)audio()},true);
 function env(g,t,a,d,peak){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d)}
 function tone(c,type,f,t,a,d,peak,f2){const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+a+d);
-  env(g,t,a,d,peak);o.connect(g).connect(c.destination);o.start(t);o.stop(t+a+d+.05)}
+  env(g,t,a,d,peak);o.connect(g).connect(sfxOut(c));o.start(t);o.stop(t+a+d+.05)}
 function noise(c,t,dur,ftype,f1,f2,peak){const b=c.createBuffer(1,Math.ceil(c.sampleRate*dur),c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
   const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();s.buffer=b;f.type=ftype;f.Q.value=1.1;f.frequency.setValueAtTime(f1,t);f.frequency.exponentialRampToValueAtTime(f2,t+dur);
-  env(g,t,.004,dur-.01,peak);s.connect(f).connect(g).connect(c.destination);s.start(t)}
+  env(g,t,.004,dur-.01,peak);s.connect(f).connect(g).connect(sfxOut(c));s.start(t)}
 function sfxCut(k){const c=audio();if(!c)return;const t=c.currentTime;noise(c,t,.24,'bandpass',2600+k*250,650,.5);tone(c,'sine',95,t,.003,.13,.5,55);tone(c,'triangle',523*Math.pow(1.1225,k),t+.02,.005,.22,.2)}
 function sfxTick(){const c=audio();if(!c)return;tone(c,'square',880,c.currentTime,.002,.06,.08)}
 function sfxAlarm(){const c=audio();if(!c)return;const t=c.currentTime;for(let i=0;i<4;i++)tone(c,'square',i%2?660:880,t+i*.11,.004,.09,.1)}
@@ -673,7 +707,7 @@ function confetti(n){if(reduce)return;const w=innerWidth,h=innerHeight;
     fly(c,[{transform:`translate(${x}px,-20px) rotate(0deg)`,opacity:1},{transform:`translate(${x+dx}px,${h+20}px) rotate(${r}deg)`,opacity:.9}],
       {duration:1400+Math.random()*1300,delay:Math.random()*350,easing:'cubic-bezier(.3,.2,.6,1)',fill:'both'})}}
 /* ---------- Kundenaufträge (laufend, immer drei) und Tagesaufgaben (drei pro Tag, für alle gleich) ---------- */
-const jobMult=()=>SHAFTS[save.shaft].mult*pm()*(1+.25*save.up.deal);
+const jobMult=()=>SHAFTS[save.shaft].mult*pm()*(1+.25*save.up.deal)*(EV().k==='jobs'?2:1);
 const ordSig=o=>o.kind+':'+(o.min||0)+':'+(o.ti||0)+':'+(o.need||0);
 function newOrder(){let o;for(let tries=0;tries<8;tries++){const k=Math.random();o={id:++save.ordN,p:0,need:1};
     if(k<.3){const i=Math.floor(Math.random()*4);o.kind='pur';o.min=[80,85,90,95][i];o.r=[150,260,480,950][i]}
@@ -701,12 +735,70 @@ function jobsStone(R){ensureJobs();const out=[],give=(r,label)=>{save.money+=r;s
   add('stones',1);add('earn',R.pay||0);if(R.final>=q.pm)add('pure',1);if(!R.cracks)add('clean',1);if(R.mode==='daily')add('daily',1);
   if(!q.all&&q.ks.every(k=>q.d[k])){q.all=1;give(Math.round(500*jobMult()),T('Alle Tagesaufgaben','All daily tasks'))}
   persist();return out}
-function renderJobs(){ensureJobs();const q=save.dq;
+function renderJobs(){ensureJobs();const q=save.dq,ev=EV();
+  $('evInfo').innerHTML=`<b>${ev.name}:</b> ${ev.desc} `+T(`Noch ${ev.left} ${ev.left===1?'Tag':'Tage'}.`,`${ev.left} ${ev.left===1?'day':'days'} left.`);whRender();
   $('dqNote').innerHTML=T(`Jede Aufgabe zahlt <b>${fmtM(Math.round(200*jobMult()))}</b>, alle drei zusammen noch einmal <b>${fmtM(Math.round(500*jobMult()))}</b>. Neue Aufgaben in <span id="dqCd">${countdown()}</span>.`,
     `Each task pays <b>${fmtM(Math.round(200*jobMult()))}</b>, all three together another <b>${fmtM(Math.round(500*jobMult()))}</b>. New tasks in <span id="dqCd">${countdown()}</span>.`);
   const row=(txt,p,g,done,pay)=>`<li class="${done?'done':''}"><div class="txt"><div class="nm">${txt}</div><div class="ds">${done?T('Erledigt','Done'):fmtBig(Math.min(p,g))+' / '+fmtBig(g)}</div><div class="meter"><i style="width:${done?100:Math.min(100,100*p/g)}%"></i></div></div><span class="pay">${done?'✓':'+'+fmtM(pay)}</span></li>`;
   $('dqList').innerHTML=q.ks.map(k=>row(dqText(k),q.p[k]||0,q.g[k],!!q.d[k],Math.round(200*jobMult()))).join('');
   $('ordList').innerHTML=save.ord.map(o=>row(ordText(o),o.p,o.need,false,o.r)).join('')}
+
+/* ---------- Lautstärke ---------- */
+save.vm=typeof save.vm==='number'?save.vm:.7;save.vs=typeof save.vs==='number'?save.vs:1;
+let sfxG=null;
+function sfxOut(c){if(!sfxG){sfxG=c.createGain();sfxG.connect(c['destination'])}sfxG.gain.value=save.vs;return sfxG}
+
+/* ---------- Wochen-Event: wechselt jeden Montag, für alle gleich ---------- */
+const EVS=[
+  {k:'rush',de:'Zeitstein-Woche',en:'Rush week',dd:'Zeitsteine tauchen doppelt so oft auf.',ed:'Rush stones show up twice as often.'},
+  {k:'gem',de:'Stein der Woche',en:'Stone of the week'},
+  {k:'jobs',de:'Auftrags-Woche',en:'Order week',dd:'Aufträge und Tagesaufgaben zahlen doppelt.',ed:'Orders and daily tasks pay double.'},
+  {k:'idle',de:'Lehrlings-Woche',en:'Apprentice week',dd:'Lehrlinge verdienen doppelt.',ed:'Apprentices earn double.'},
+  {k:'rare',de:'Glückswoche',en:'Lucky week',dd:'Seltene, epische und legendäre Steine sind in der Mine häufiger.',ed:'Rare, epic and legendary stones are more common in the mine.'}
+];
+const dayIdx=()=>{const n=new Date();return Math.round((new Date(n.getFullYear(),n.getMonth(),n.getDate())-new Date(2026,10,9))/864e5)};
+function EV(){const d=dayIdx(),w=Math.floor(d/7),e=EVS[((w%EVS.length)+EVS.length)%EVS.length],ti=(((w*5)%TYPES.length)+TYPES.length)%TYPES.length;
+  return{k:e.k,w,ti,left:7-(((d%7)+7)%7),name:T(e.de,e.en),desc:e.k==='gem'?T(`${TYPES[ti].n} bringt diese Woche den dreifachen Preis.`,`${TYPES[ti].n} sells for three times the price this week.`):T(e.dd,e.ed)}}
+
+/* ---------- Glücksrad: einmal am Tag ---------- */
+const whReady=()=>save.wheel!==dayKey();
+const whPay=v=>{v=Math.round(v);save.money+=v;save.st.earned+=v};
+function whPrizes(){const m=jobMult();return[
+  {w:40,l:'+'+fmtM(Math.round(100*m)),f:()=>whPay(100*m)},
+  {w:25,l:'+'+fmtM(Math.round(400*m)),f:()=>whPay(400*m)},
+  {w:10,l:'+'+fmtM(Math.round(1500*m)),f:()=>whPay(1500*m),big:1},
+  {w:3,l:'+'+fmtM(Math.round(6000*m)),f:()=>whPay(6000*m),big:1},
+  {w:12,l:T('Glücksstein','Lucky stone'),f:()=>{save.lucky=1},big:1,d:T('Dein nächster Stein in der Mine ist mindestens episch.','Your next stone in the mine is at least epic.')},
+  {w:10,l:T('3 Stunden Lehrlingslohn','3 hours of apprentice pay'),f:()=>whPay(Math.max(100*m,idleRate()*3))}]}
+let whBusy=false;
+function whRender(){const b=$('whBtn'),i=$('whInfo');if(whBusy)return;b.disabled=!whReady();b.textContent=whReady()?T('Drehen','Spin'):T('Morgen wieder','Again tomorrow');
+  if(whReady())i.innerHTML=T('Einmal am Tag drehen. Zu gewinnen: Geld, Lehrlingslohn oder ein Glücksstein.','One spin per day. You can win money, apprentice pay or a lucky stone.');
+  else if(!i.dataset.won)i.innerHTML=T(`Heute schon gedreht. Neues Rad in <span id="whCd">${countdown()}</span>.`,`Already spun today. New wheel in <span id="whCd">${countdown()}</span>.`);
+  $('tab-jobs').classList.toggle('dot',whReady())}
+$('whBtn').addEventListener('click',()=>{if(whBusy||!whReady())return;audio();const P=whPrizes(),sum=P.reduce((a,p)=>a+p.w,0);let r=Math.random()*sum,win=P[0];for(const p of P){if(r<p.w){win=p;break}r-=p.w}
+  const b=$('whBtn'),info=$('whInfo');whBusy=true;b.disabled=true;save.wheel=dayKey();persist();let n=0;
+  const done=()=>{whBusy=false;win.f();persist();info.dataset.won='1';info.innerHTML=`<b class="whres">${win.l}</b>`+(win.d?' '+win.d:'');banner(win.l,T('Glücksrad','Lucky wheel'),win.big?'gold':'rare');
+    if(win.big){confetti(80);flash('var(--brass)');sfxJackpot()}else sfxBuy();showMoney();checkMiles();checkAch();whRender()};
+  if(reduce){done();return}
+  const iv=setInterval(()=>{info.innerHTML=`<b class="whres">${P[n%P.length].l}</b>`;sfxTick();if(++n>18){clearInterval(iv);done()}},90)});
+
+/* ---------- Aussehen: Farbe der Schnittlinie und Licht der Werkbank ---------- */
+const COS={
+  line:[{k:'gold',de:'Gold',en:'Gold',c:'#ffe6a3',g:'#ffc94d',cost:0},{k:'mint',de:'Mint',en:'Mint',c:'#d2ffee',g:'#6fe3b4',cost:5000},{k:'rose',de:'Rosa',en:'Rose',c:'#ffdbea',g:'#ff7ab8',cost:20000},
+    {k:'ice',de:'Eis',en:'Ice',c:'#eaf7ff',g:'#7fd0ff',cost:80000},{k:'rain',de:'Regenbogen',en:'Rainbow',c:'#ffffff',g:'conic-gradient(#ff7a6b,#ffc94d,#6fe3b4,#7fd0ff,#c9a0ff,#ff7a6b)',cost:500000}],
+  lamp:[{k:'blue',de:'Blau',en:'Blue',g:'#4a57a6',cost:0},{k:'violet',de:'Violett',en:'Violet',g:'#7a4fb0',cost:10000},{k:'teal',de:'Türkis',en:'Teal',g:'#2f8f95',cost:40000},
+    {k:'ember',de:'Glut',en:'Ember',g:'#a8553a',cost:150000},{k:'sun',de:'Sonne',en:'Sun',g:'#a88a2e',cost:1e6}]
+};
+save.cos=Object.assign({line:'gold',lamp:'blue'},save.cos);save.cos.own=Object.assign({},save.cos.own,{gold:1,blue:1});
+function applyCos(){const l=COS.lamp.find(x=>x.k===save.cos.lamp)||COS.lamp[0];try{document.documentElement.style.setProperty('--lamp',l.g)}catch(e){}}
+function lineCols(t){const i=COS.line.find(x=>x.k===save.cos.line)||COS.line[0];if(i.k==='rain'){const h=Math.floor(t*90)%360;return{c:`hsl(${h} 100% 86%)`,g:`hsl(${h} 100% 62%)`}}return i}
+function cosRows(){const row=(kind,label,it)=>{const own=save.cos.own[it.k],on=save.cos[kind]===it.k;
+    const btn=on?`<button class="buy on" disabled>${T('Aktiv','Active')}</button>`:own?`<button class="buy" data-cos="${kind}:${it.k}">${T('Wählen','Use')}</button>`:`<button class="buy" data-cos="${kind}:${it.k}" ${save.money>=it.cost?'':'disabled'}>${fmtM(it.cost)}</button>`;
+    return`<li><span class="swatch" style="background:${it.g}"></span><div class="txt"><div class="nm">${label}: ${T(it.de,it.en)}</div></div>${btn}</li>`};
+  return COS.line.map(i=>row('line',T('Schnittlinie','Cut line'),i)).join('')+COS.lamp.map(i=>row('lamp',T('Werkbank-Licht','Bench light'),i)).join('')}
+function cosClick(v){const[kind,k]=v.split(':'),it=(COS[kind]||[]).find(x=>x.k===k);if(!it)return;
+  if(!save.cos.own[k]){if(save.money<it.cost)return;save.money-=it.cost;save.cos.own[k]=1;sfxBuy()}save.cos[kind]=k;applyCos()}
+applyCos();
 
 /* ---------- Erfolge: g Ziel, v aktueller Wert, r Belohnung ---------- */
 const stn=i=>(save.st.types[i]||{}).n||0;
@@ -754,12 +846,14 @@ function buildDaily(){const key=dayKey(),st=makeStone(seedOf(key)),R=newRound('d
   else if(save.cur&&save.cur.day===key){for(const c of save.cur.cuts)applyCut(R,[c[0],c[1]],[c[2],c[3]]);R.shown=score(R);if(R.cutsLeft<=0)finish(R,true)}}
 function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine()}
 function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(9,5+Math.floor((L-1)/3));let cuts=Math.max(4,sides-Math.floor(L/6))+save.up.cut;
-  const seed=Math.random()*4294967296>>>0,rushRoll=Math.random();
+  let seed=Math.random()*4294967296>>>0;const rushRoll=Math.random(),luck=save.up.luck+(EV().k==='rare'?2:0);
   /* Sonderform: ab dem dritten Stein, jeder vierte */
   const shape=L>=3&&Math.random()<.25?['round','needle','tiny'][Math.floor(Math.random()*3)]:null;if(shape==='round')cuts=Math.max(cuts,6);
-  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(seed,sides,sh,shape,save.up.luck),cuts,0);R.shape=shape;
+  /* Glücksstein vom Glücksrad: so lange neu würfeln, bis der Stein mindestens episch ist */
+  if(save.lucky){for(let i=0;i<400&&tier(makeStone(seed,sides,sh,shape,luck).type)<3;i++)seed=Math.random()*4294967296>>>0;save.lucky=0;persist()}
+  mine.shaft=sh;const R=rounds.mine=newRound('mine',makeStone(seed,sides,sh,shape,luck),cuts,0);R.shape=shape;
   /* Zeitstein: selten, nie zweimal hintereinander, nie als erster Stein der Schicht */
-  if(mine.level>=2&&!mine.lastRush&&rushRoll<RUSH_P){R.rush=true;R.time=R.timeMax=4+cuts*.9+1.5*save.up.clock;R.grace=1.9}
+  if(mine.level>=2&&!mine.lastRush&&rushRoll<RUSH_P*(EV().k==='rush'?2:1)){R.rush=true;R.time=R.timeMax=4+cuts*.9+1.5*save.up.clock;R.grace=1.9}
   mine.lastRush=!!R.rush}
 /* Zeitstein: nur wenige Sekunden. Zeit um, Riss oder zu unrein = verloren, keine Belohnung. Geschafft = achtfacher Preis. */
 const RUSH_P=.14,RUSH_X=8,RUSH_MIN=60;
@@ -901,7 +995,8 @@ function showPanel(R){const g=GRADES[gradeIdx(R.final)],t=R.stone.type,used=R.cu
 function countdown(){const n=new Date(),m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1),s=Math.max(0,Math.floor((m-n)/1000)),p=v=>String(v).padStart(2,'0');
   return p(Math.floor(s/3600))+':'+p(Math.floor(s/60)%60)+':'+p(s%60)}
 setInterval(()=>{const e=$('cd');if(e)e.textContent=countdown();accrue();updateCollect();
-  if(view==='jobs'){if(save.dq&&save.dq.day!==dayKey())renderJobs();else{const c=$('dqCd');if(c)c.textContent=countdown()}}
+  if(view==='jobs'){if(save.dq&&save.dq.day!==dayKey())renderJobs();else{const c=$('dqCd');if(c)c.textContent=countdown();const w=$('whCd');if(w)w.textContent=countdown()}}
+  if(!whBusy)$('tab-jobs').classList.toggle('dot',whReady());
   if(rounds.daily&&rounds.daily.key!==dayKey()){buildDaily();if(view==='daily'){panel.hidden=true;const R=cur();if(R.panel)showPanel(R);refreshHud()}}},1000);
 
 /* ---------- Vitrine ---------- */
@@ -1039,8 +1134,8 @@ function draw(R){ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);if(!R)
   /* Schnittlinie */
   if(drag){ctx.setTransform(dpr,0,0,dpr,0,0);const a=drag.a,b=drag.b,dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy);
     if(l>4){const ux=dx/l,uy=dy/l,far=W+H;ctx.lineCap='round';
-      ctx.strokeStyle='rgba(255,201,77,.4)';ctx.lineWidth=1.5;ctx.setLineDash([6,7]);ctx.beginPath();ctx.moveTo(a[0]-ux*far,a[1]-uy*far);ctx.lineTo(b[0]+ux*far,b[1]+uy*far);ctx.stroke();ctx.setLineDash([]);
-      ctx.shadowColor='#ffc94d';ctx.shadowBlur=10*dpr;ctx.strokeStyle=l<26?'rgba(255,201,77,.5)':'#ffe6a3';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.shadowBlur=0;
+      const lc=lineCols(R.t);ctx.globalAlpha=.4;ctx.strokeStyle=lc.g;ctx.lineWidth=1.5;ctx.setLineDash([6,7]);ctx.beginPath();ctx.moveTo(a[0]-ux*far,a[1]-uy*far);ctx.lineTo(b[0]+ux*far,b[1]+uy*far);ctx.stroke();ctx.setLineDash([]);
+      ctx.globalAlpha=1;ctx.shadowColor=lc.g;ctx.shadowBlur=10*dpr;ctx.strokeStyle=l<26?lc.g:lc.c;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();ctx.shadowBlur=0;
       if(l>=26&&R.mode==='mine'&&(save.up.guide||save.up.lupe)){const la=toLocal(a,R.rot),lb=toLocal(b,R.rot),sn=snap(R,la,lb);
         if(sn){const p=toWorld(sn[0],R.rot),q=toWorld(sn[1],R.rot),px=V.cx+p[0]*V.S,py=V.cy+p[1]*V.S,qx=V.cx+q[0]*V.S,qy=V.cy+q[1]*V.S,ex=(qx-px),ey=(qy-py),el=Math.hypot(ex,ey)||1;
           ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px-ex/el*40,py-ey/el*40);ctx.lineTo(qx+ex/el*40,qy+ey/el*40);ctx.stroke()}
@@ -1098,6 +1193,7 @@ function renderShop(){showMoney();
   $('idleInfo').innerHTML=r?T(`Deine Lehrlinge verdienen <b>${fmtM(r)} pro Stunde</b>, auch wenn das Spiel zu ist. Das Lager fasst ${idleHours()} Stunden, also ${fmtM(idleCap())}. Jeder tiefere Schacht erhöht den Verdienst.`,
       `Your apprentices earn <b>${fmtM(r)} per hour</b>, even while the game is closed. Storage holds ${idleHours()} hours, so ${fmtM(idleCap())}. Every deeper shaft raises the income.`)
     :T('Noch keine Lehrlinge. Stell welche ein, dann verdienst du Geld, auch wenn du nicht spielst.','No apprentices yet. Hire some and you earn money even while you are not playing.');
+  $('cosList').innerHTML=cosRows();
   /* Meisterbrief */
   const g=presGain(),n=save.pres,pb=$('presBtn');
   $('presInfo').innerHTML=(n?T(`Du hast <b>${n} ${n===1?'Meisterbrief':'Meisterbriefe'}</b>: Preise, Lehrlinge und Aufträge ×${fmt(pm())}. `,`You hold <b>${n} ${n===1?'certificate':'certificates'}</b>: prices, apprentices and orders ×${fmt(pm())}. `):'')
@@ -1123,10 +1219,15 @@ $('shopView').addEventListener('click',e=>{const b=e.target.closest('button.buy'
   if(b.dataset.tool){const t=[...IDLE,...TOOLS].find(x=>x.k===b.dataset.tool),c=t.costs[save.up[t.k]];if(c===undefined||save.money<c)return;save.money-=c;save.up[t.k]++;sfxBuy()}
   else if(b.dataset.unlock){const i=+b.dataset.unlock;if(i!==save.shaft+1||save.money<SHAFTS[i].cost)return;save.money-=SHAFTS[i].cost;save.shaft=i;save.sel=i;rounds.mine=null;sfxBuy()}
   else if(b.dataset.shaft){save.sel=+b.dataset.shaft;rounds.mine=null}
+  else if(b.dataset.cos)cosClick(b.dataset.cos);
   persist();renderShop();checkAch()});
 const sndBtn=$('sndBtn');$('langBtn').addEventListener('click',()=>{save.lang=EN?'de':'en';persist();location.reload()});
 if(EN)$('langBtn').setAttribute('aria-label','Auf Deutsch umschalten');
 const musBtn=$('musBtn');
+$('volM').value=Math.round(save.vm*100);$('volS').value=Math.round(save.vs*100);
+$('volM').addEventListener('input',e=>{save.vm=e.target.value/100;if(ac&&MUS.out&&MUS.on)MUS.out.gain.setTargetAtTime(musVol(),ac.currentTime,.05)});
+$('volS').addEventListener('input',e=>{save.vs=e.target.value/100;if(sfxG)sfxG.gain.value=save.vs});
+$('volM').addEventListener('change',persist);$('volS').addEventListener('change',()=>{persist();sfxBuy()});
 function trackLabel(){$('trkBtn').textContent=T('Nächstes Lied','Next track')+' · '+SONGS[MUS.song].n}
 $('trkBtn').addEventListener('click',()=>{if(!save.mus){save.mus=true;persist();sndLabel()}actx();if(MUS.on)musicNext(.2);else musicStart();trackLabel()});
 function sndLabel(){sndBtn.textContent=save.snd?T('Geräusche: an','Sound effects: on'):T('Geräusche: aus','Sound effects: off');sndBtn.setAttribute('aria-pressed',save.snd?'true':'false');
@@ -1159,7 +1260,8 @@ $('introMine').addEventListener('click',()=>closeIntro('mine'));
     $('backTxt').innerHTML=T(`Du warst ${fmtDur(away)} weg. Im Lager liegen <b>${fmtM(n)}</b> von deinen Lehrlingen.`+(full?' Das Lager ist voll. Ein größeres Lager fasst mehr.':''),
       `You were away for ${fmtDur(away)}. Your apprentices left <b>${fmtM(n)}</b> in storage.`+(full?' Storage is full. A bigger one holds more.':''));
     $('back').hidden=false}}
-ensureJobs();persist();
+ensureJobs();persist();$('tab-jobs').classList.toggle('dot',whReady());
+if(save.seen&&save.evW!==EV().w){save.evW=EV().w;persist();setTimeout(()=>banner(EV().name,T('Diese Woche','This week'),'rare'),1500)}
 buildDaily();sndLabel();updateCollect();checkAch(true);
 if(!save.seen&&!rounds.daily.done)$('intro').hidden=false;
 setView('daily');
