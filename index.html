@@ -374,6 +374,7 @@ button:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
     </ul>
     <h2 data-en="Save game">Spielstand</h2>
     <p class="note" data-en="Your progress is stored only in this browser. With the code you can back it up or take it to another device.">Dein Spielstand liegt nur in diesem Browser. Mit dem Code kannst du ihn sichern oder auf ein anderes Gerät mitnehmen.</p>
+    <p class="note" data-en="This page counts visits anonymously (GoatCounter, no cookies, no personal data).">Diese Seite zählt Besuche anonym (GoatCounter, ohne Cookies, ohne persönliche Daten).</p>
     <div class="set-row">
       <button class="btn" id="expBtn" data-en="Copy code">Code kopieren</button>
       <button class="btn" id="impBtn" data-en="Load code">Code laden</button>
@@ -421,6 +422,8 @@ const MILES=[1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e10,1e11,1e12,1e13];
 if(typeof save.mile!=='number')save.mile=MILES.filter(m=>(+save.money||0)>=m).length;
 save.money=+save.money||0;save.shaft=Math.max(0,Math.min(9,save.shaft|0));save.sel=Math.max(0,Math.min(save.shaft,save.sel|0));
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}};
+/* Anonyme Zählung (GoatCounter, ohne Cookies). Läuft nur, wenn die gehostete Seite das Zählskript geladen hat. */
+const track=n=>{try{const g=window.goatcounter;if(g&&g.count)g.count({path:'ev-'+n,title:n,event:true})}catch(e){}};
 
 /* ---------- Datum ---------- */
 const EPOCH=new Date(2026,10,10);
@@ -869,7 +872,8 @@ function buildDaily(){const key=dayKey(),st=makeStone(seedOf(key)),R=newRound('d
   const d=save.days[key];
   if(d){R.stone=Object.assign({},st,{ti:d.t,type:TYPES[d.t]||st.type,ct:d.ct||st.ct});R.gem=d.p;R.rock=d.p;R.cracks=d.c;R.cutsLeft=R.cutsMax-d.u;R.done=true;R.fin=9;R.final=d.s;R.shown=d.s;R.panel=true}
   else if(save.cur&&save.cur.day===key){for(const c of save.cur.cuts)applyCut(R,[c[0],c[1]],[c[2],c[3]]);R.shown=score(R);if(R.cutsLeft<=0)finish(R,true)}}
-function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine()}
+let mineTracked=false;
+function startMine(){mine={level:0,lives:3,score:0,over:false,record:false};nextMine();if(!mineTracked){mineTracked=true;track('mine')}}
 function nextMine(){mine.level++;const sh=save.sel,L=mine.level+sh*3,sides=Math.min(9,5+Math.floor((L-1)/3));let cuts=Math.max(4,sides-Math.floor(L/6))+save.up.cut;
   let seed=Math.random()*4294967296>>>0;const rushRoll=Math.random(),luck=save.up.luck+(EV().k==='rare'?2:0);
   /* Sonderform: ab dem dritten Stein, jeder vierte */
@@ -887,7 +891,7 @@ function rushHud(R){const e=$('rush');if(e.hidden)e.hidden=false;const t=fmt(Mat
 
 function finish(R,quiet){if(R.done)return;R.done=true;R.fin=0;R.final=Math.round(score(R)*10)/10;const gi=gradeIdx(R.final);
   if(R.mode==='daily'){save.days[R.key]={s:R.final,c:R.cracks,u:R.cutsMax-R.cutsLeft,t:R.stone.ti,ct:R.stone.ct,p:flat(R.gem)};save.cur=null;
-    R.pay=Math.round(price(R.stone,R.final,save.shaft,false)*DAILY_X*streakBonus());save.days[R.key].m=R.pay;save.money+=R.pay;persist()}
+    R.pay=Math.round(price(R.stone,R.final,save.shaft,false)*DAILY_X*streakBonus());save.days[R.key].m=R.pay;save.money+=R.pay;persist();if(!quiet){track('tagesstein');const sk=streak();if(sk===2||sk===3||sk===7||sk===14||sk===30)track('serie-'+sk)}}
   else{const base=Math.round(price(R.stone,R.final,mine.shaft,true)*(R.shape?SHAPES[R.shape].x:1));
     if(R.rush){R.won=!R.failed&&R.final>=RUSH_MIN;if(!R.won&&!R.failed)R.failed='low';R.pay=R.won?base*RUSH_X:0;if(!R.won){R.gone=true;R.crackLines=[]}}
     else{R.pay=base;if(R.final<50){mine.lives--;R.lost=true}}
@@ -1230,7 +1234,7 @@ function renderShop(){showMoney();
 const presGain=()=>Math.max(0,save.shaft-1);
 let presArm=0;
 $('presBtn').addEventListener('click',()=>{const g=presGain(),b=$('presBtn');if(!g)return;
-  if(Date.now()<presArm){presArm=0;save.pres+=g;save.money=0;save.shaft=0;save.sel=0;save.bank=0;for(const k in save.up)save.up[k]=0;rounds.mine=null;persist();audio();sfxLegend();
+  if(Date.now()<presArm){presArm=0;track('meisterbrief');save.pres+=g;save.money=0;save.shaft=0;save.sel=0;save.bank=0;for(const k in save.up)save.up[k]=0;rounds.mine=null;persist();audio();sfxLegend();
     confetti(120);flash('var(--brass)');banner(T('Meisterbrief!','Certificate!'),T(`Alle Preise ×${fmt(pm())}`,`All prices ×${fmt(pm())}`),'gold big');moneyShown=-1;renderShop();checkAch();return}
   presArm=Date.now()+5000;b.classList.add('armed');b.textContent=T('Wirklich neu anfangen?','Really start over?');setTimeout(()=>{if(view==='shop'&&Date.now()>=presArm)renderShop()},5200)});
 function updateCollect(){const b=Math.floor(save.bank),e=$('collect');e.hidden=b<1;if(b>=1){e.textContent=`+${fmtInt(b)} ◈`;e.classList.toggle('full',save.bank>=idleCap()-.5);
@@ -1295,6 +1299,7 @@ requestAnimationFrame(frame);
 })();
 </script>
 
+<script data-goatcounter="https://schliff.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});</script>
 </body>
 </html>

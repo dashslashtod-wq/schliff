@@ -38,6 +38,7 @@ const head = `<!doctype html>
 `;
 
 const tail = `
+<script data-goatcounter="https://schliff.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})});</script>
 </body>
 </html>
