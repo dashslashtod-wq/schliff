@@ -38,7 +38,7 @@ Das erzeugt `schliff-crazygames.zip` (nicht in Git). Titelbilder liegen in `craz
 | Mobile | ja |
 | Genre | Casual / Puzzle |
 | Covers | `crazygames-media/cover-landscape.png` (1920 × 1080), `cover-portrait.png` (800 × 1200), `cover-square.png` (800 × 800) |
-| Preview video | 15–20 Sekunden, ohne Ton, 1080p im Format 16:9 und 2:3 |
+| Preview video | `crazygames-media/preview-landscape.mp4` (1920 × 1080) und `preview-portrait.mp4` (1080 × 1620), je 18,6 s, ohne Ton. Nicht in Git, liegen nur lokal. |
 
 ## Beschreibung (zum Einfügen)
 
